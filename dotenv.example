@@ -1,0 +1,2 @@
+DEBIAN_RELEASE=bookworm
+DB_CONNECT_STRING="postgresql://root@localhost:26257/defaultdb?sslcert=/certs/client.root.crt&sslkey=/certs/client.root.key&sslmode=verify-full&sslrootcert=/certs/ca.crt"

@@ -1,0 +1,250 @@
+version: '3.8'
+
+services:
+  netcrave-image:
+    image: netcrave
+    build:
+      context: .
+      args:
+        DEBIAN_RELEASE: ${DEBIAN_RELEASE}
+      dockerfile: ./docker/netcrave/Dockerfile
+  netcrave-docker-image:
+    depends_on:
+        netcrave-image:        
+            condition: service_completed_successfully
+    image: netcrave:docker
+    build:
+      context: .
+      dockerfile: ./docker/netcrave-docker/Dockerfile
+  ipam:
+    depends_on:
+        netcrave-docker-image:        
+            condition: service_completed_successfully
+    image: netcrave:ipam
+    build:
+      context: .
+      dockerfile: ./docker/ipam/Dockerfile
+    environment:
+      DB_CONNECT_STRING: ${IPAM_DB_CONNECT_STRING}
+    networks:
+      netcrave-docker-driver-ipam:
+        ipv4_address: 192.0.0.2
+        ipv6_address: 2001:db8:aaaa:aaaa:192:0:0:2
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+    volumes:
+      - /run/netcrave/docker/ifconfig
+  ifconfig:
+    depends_on:
+        netcrave-docker-image:
+            condition: service_completed_successfully        
+    image: netcrave:ifconfig
+    build:
+      context: .
+      dockerfile: ./docker/ifconfig/Dockerfile
+    networks:
+      netcrave-docker-driver-ifconfig:
+        ipv4_address: 192.0.0.6
+        ipv6_address: 2001:db8:aaaa:aaab:192:0:0:6
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+    volumes:
+      - /run/netcrave/docker/ifconfig
+  haproxycfg:
+    depends_on:
+        netcrave-docker-image:
+            condition: service_completed_successfully        
+    image: netcrave:haproxycfg
+    build:
+      context: .
+      dockerfile: ./docker/haproxycfg/Dockerfile
+    networks:
+      netcrave-docker-driver-haproxycfg:
+        ipv4_address: 192.0.0.10
+        ipv6_address: 2001:db8:aaaa:aaac:192:0:0:10
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+  certificatemgr:
+    depends_on:
+        netcrave-docker-image:
+            condition: service_completed_successfully        
+    image: netcrave:certificatemgr
+    build:
+      context: .
+      dockerfile: ./docker/certificatemgr/Dockerfile
+    environment:
+      DB_CONNECT_STRING: ${IPAM_DB_CONNECT_STRING}
+      HTTP_PROXY: http://[2001:db8:aaaa:aabb:192:0:0:30]:3128
+      HTTPS_PROXY: http://[2001:db8:aaaa:aabb:192:0:0:30]:3128
+    networks:
+      netcrave-docker-driver-certificatemgr:
+        ipv4_address: 192.0.0.14
+        ipv6_address: 2001:db8:aaaa:aaad:192:0:0:14
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+  dnsd:
+    depends_on:
+        netcrave-docker-image:
+            condition: service_completed_successfully        
+    image: netcrave:dnsd
+    build:
+      context: .
+      dockerfile: ./docker/dnsd/Dockerfile
+    networks:
+      netcrave-docker-driver-dnsd:
+        ipv4_address: 192.0.0.18
+        ipv6_address: 2001:db8:aaaa:aaae:192:0:0:18
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+  icap:
+    depends_on:
+        netcrave-docker-image:
+            condition: service_completed_successfully        
+    image: netcrave:icap
+    build:
+      context: .
+      dockerfile: ./docker/icap/Dockerfile
+    networks:
+      netcrave-docker-driver-icap:
+        ipv4_address: 192.0.0.22
+        ipv6_address: 2001:db8:aaaa:aaaf:192:0:0:22
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+  haproxy:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:haproxy
+    build:
+      context: .
+      args:
+        ADMIN_SOCKET_ADDR: "[2001:db8:aaaa:aaba:192:0:0:26]:23"
+      dockerfile: ./docker/haproxy/Dockerfile
+    networks:
+      netcrave-docker-driver-haproxy:
+        ipv4_address: 192.0.0.26
+        ipv6_address: 2001:db8:aaaa:aaba:192:0:0:26
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+  squid:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:squid
+    build:
+      context: .
+      args:
+        TEMPLATE_ROOT: ./docker/squid/templates
+      dockerfile: ./docker/squid/Dockerfile
+    networks:
+      netcrave-docker-driver-squid:
+        ipv4_address: 192.0.0.30
+        ipv6_address: 2001:db8:aaaa:aabb:192:0:0:30
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+  cockroach:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    networks:
+      netcrave-docker-driver-cockroach:
+        ipv4_address: 192.0.0.34
+        ipv6_address: 2001:db8:aaaa:aabc:192:0:0:34
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 192.0.0.38
+  fluentd:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:fluentd
+    build:
+      context: .
+      dockerfile: ./docker/fluentd/Dockerfile
+    networks:
+      netcrave-docker-driver-fluentd:
+        ipv4_address: 192.0.0.38
+        ipv6_address: 2001:db8:aaaa:aabd:192:0:0:38
+        
+networks:
+  netcrave-docker-driver-ipam:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.0/30
+        - subnet: 2001:db8:aaaa:aaaa::/64
+  netcrave-docker-driver-ifconfig:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.4/30
+        - subnet: 2001:db8:aaaa:aaab::/64
+  netcrave-docker-driver-haproxycfg:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.8/30
+        - subnet: 2001:db8:aaaa:aaac::/64
+  netcrave-docker-driver-certificatemgr:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.12/30
+        - subnet: 2001:db8:aaaa:aaad::/64
+  netcrave-docker-driver-dnsd:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.16/30
+        - subnet: 2001:db8:aaaa:aaae::/64
+  netcrave-docker-driver-icap:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.20/30
+        - subnet: 2001:db8:aaaa:aaaf::/64
+  netcrave-docker-driver-haproxy:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.24/30
+        - subnet: 2001:db8:aaaa:aaba::/64
+  netcrave-docker-driver-squid:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.28/30
+        - subnet: 2001:db8:aaaa:aabb::/64
+  netcrave-docker-driver-cockroach:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.32/30
+        - subnet: 2001:db8:aaaa:aabc::/64
+  netcrave-docker-driver-fluentd:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.36/30
+        - subnet: 2001:db8:aaaa:aabd::/64

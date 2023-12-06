@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "netcrave-docker-driver"
+version = "0.1.0"
+description = ""
+authors = ["Paige Thompson <paige@paige.bio>"]
+license = "GPL"
+readme = "README.md"
+packages = [{ include = "netcrave_docker_certificatemgr", from = "src" },{ include = "netcrave_docker_dnsd", from = "src" }, { include = "netcrave_docker_haproxyctl", from = "src" }, { include = "netcrave_docker_icap", from = "src" }, { include = "netcrave_docker_ipam", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pyroute2 = "^0.7.9"
+pyicap = "^1.0b1"
+flask = "^3.0.0"
+haproxyadmin = "^0.2.4"
+certbot = "^2.7.4"
+dnserver = "^0.4.0"
+uwsgi = "^2.0.23"
+ipython = "^8.18.1"
+ipaddress = "^1.0.23"
+cryptography = "^41.0.7"
+pyopenssl = "^23.3.0"
+docker = "^6.1.3"
+psycopg = "^3.1.14"
+pywebdav3 = "^0.10.0"
+python-magic = "^0.4.27"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry.scripts]
+dnsd = "netcrave_docker_dnsd:main"
+crtmgrd = "netcrave_docker_certificatemgr:main"
+haproxyctld = "netcrave_docker_haproxyctl:main"
+icapd = "netcrave_docker_icap:main"
+ifconfigd = "netcrave_docker_ifconfig:main"
+ipamd = "netcrave_docker_ipam:main"

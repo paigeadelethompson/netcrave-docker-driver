@@ -1,0 +1,8 @@
+
+      http_port         3128
+      icap_enable       on
+      icap_service      service_req         reqmod_precache  bypass=1 icap://[2001:db8:aaaa:aaaf:192:0:0:22]:1344/request
+      adaptation_access service_req         allow all
+      icap_service      service_resp        respmod_precache bypass=0 icap://[2001:db8:aaaa:aaaf:192:0:0:22]:1344/response
+      adaptation_access service_resp        allow all
+      include           /etc/squid/conf.d/*

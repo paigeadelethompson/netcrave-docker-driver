@@ -1,0 +1,8 @@
+global    # {{ DEBIAN_RELEASE }}
+frontend  stats
+    mode  http
+    bind  [2001:db8:aaaa:aaba:192:0:0:26]:80
+    stats enable
+    stats uri /stats
+    stats refresh 10s
+    stats admin if 2001:db8:aaaa:aaba:192:0:0:26/64
