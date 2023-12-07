@@ -24,5 +24,3 @@ class service():
     def release_address(self, request):
         # toggle allocation status
         pass
-
-
