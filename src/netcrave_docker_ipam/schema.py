@@ -2,10 +2,11 @@
 
 import uuid
 from netcrave_docker_ipam.scope import scope, get_network_object, get_ipv6_network_object_from_token
-from netcrave_docker_ipam.tags import tag
-from netcrave_docker_ipam.db import tag_type
+from netcrave_docker_ipam.tags import tag, instantiate_tags
+from netcrave_docker_ipam.label import scope_label_masks, interface_type, tag_type
 from itertools import islice
 from  sys import maxsize as MAX
+import os 
 
 class schema():
     def __init__(self):
@@ -15,50 +16,8 @@ class schema():
             'templates': [{
                 'name': 'default',
                 'scopes': [{
-                    'ipv4_prefix_length': 24,
-                    'ipv4_allocation_length': [32],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [127]
-                }, {
-                    'ipv4_prefix_length': 24,
-                    'ipv4_allocation_length': [31],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [127]
-                }, {
-                    'ipv4_prefix_length': 24,
-                    'ipv4_allocation_length': [30],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [125]
-                }, {
-                    'ipv4_prefix_length': 24,
-                    'ipv4_allocation_length': [29],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [124]
-                }, {
-                    'ipv4_prefix_length': 24,
-                    'ipv4_allocation_length': [28],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [123]
-                }, {
-                    'ipv4_prefix': 24,
-                    'ipv4_allocation_length': [27],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [122]
-                }, {
-                    'ipv4_prefix': 24,
-                    'ipv4_allocation_length': [26],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [121]
-                }, {
-                    'ipv4_prefix': 24,
-                    'ipv4_allocation_length': [25],
-                    'ipv6_prefix_length': 120,
-                    'ipv6_allocation_length': [120]
-                }, {
-                    'ipv4_prefix': 21,
-                    'ipv4_allocation_length': [22, 23, 24],
-                    'ipv6_prefix_length': 117,
-                    'ipv6_allocation_length': [118]
+                    'ipv4_prefix_length': 21,
+                    'ipv6_prefix_length': 117
                 }]}],
             'scopes': [{
                 'ipv4_network': '10.0.0.0',
@@ -150,78 +109,143 @@ class schema():
                     'subnet_template': 'default'
                 }]
             }]}
-                
+    
+    def default_vrf_id(self): 
+        return os.environ.get("DEFAULT_VRF_ID")
+    
+    def default_route_table(self):
+        return os.environ.get("DEFAULT_ROUTE_TABLE")
+    
+    def default_network_namespace(self):
+        return os.environ.get("DEFAULT_NETWORK_NS")
+    
     def get_schema_or_default(self):
         return self._default_schema
 
-    def instantiate_tags(self, tags, kind):
-        if tags != None:
-            return [tag(kind, index) for index in tags]
-        else: 
-            return []
-        
-
     def instantiate_scopes_from_schema(self, cursor):
         schema = self.get_schema_or_default()
-        scopes_out = []
-        parents = []
         to_process = schema.get("scopes")
-        current = to_process.pop()
-
-        while True:
-            if current.get("ipv4_network") != None:
-                cur4 = scope(get_network_object(current.get("ipv4_network"), current.get("ipv4_prefix_length")),
-                             parent = len(parents) > 0 and parents[-1][0] or None,
-                             tags = self.instantiate_tags(current.get("tags"), cursor.tag_type().enum.scope)
-                             + self.instantiate_tags(current.get("egress"), cursor.tag_type().enum.egress)
-                             + self.instantiate_tags(current.get("tags"), cursor.tag_type().enum.ingress))
-
-            if current.get("ipv6_network") != None:
-                if current.get("ipv6_network").startswith("::"):
-                    net6 = get_ipv6_network_object_from_token(
-                        parents[-1][1].network_object(), 
-                        current.get("ipv6_network"), 
-                        current.get("ipv6_prefix_length"))
-                else: 
-                    net6 = get_network_object(current.get("ipv6_network"), current.get("ipv6_prefix_length"))
-                    
-                cur6 = scope(net6,
-                             parent = len(parents) > 0 and parents[-1][1] or None,
-                             tags = self.instantiate_tags(current.get("tags"), cursor.tag_type().enum.scope) 
-                             + self.instantiate_tags(current.get("egress"), cursor.tag_type().enum.egress)
-                             + self.instantiate_tags(current.get("ingress"), cursor.tag_type().enum.ingress))
-
-            if current.get("subnet_template") != None:
-                [scopes_out.append(s) for s in self.template_to_scopes(schema, current.get("subnet_template"), cur4, cur6)]
-
-            if current.get("scopes") != None:
-                to_add = current.get("scopes")
-                parent_t = (cur4 != None or cur6 != None) and (cur4, cur6) or None
-                for index in to_add:
-                    index["parent"] = hash(parent_t)
-                    to_process.append(index)
-                parents.append(parent_t)
-
-            if len(to_process) != 0:
-                current = to_process.pop()
-            else:
-                break
-
-            if len(parents) > 0 and current.get("parent") != hash(parents[-1]):
-                parents.pop()
-
-            scopes_out += [cur4, cur6]
-            cur4, cur6 = (None, None)
-            
-        return scopes_out
-
-    def template_to_scopes(self, schema, template_name, current_v4 = None, current_v6 = None):
-        template = next((template for template in schema.get("templates") if template.get("name") == template_name))
+        current_parent, current, current_deserialized = (None, None, None)
         
-        for scope_template in template.get("scopes"):
-            if current_v4 != None:
-                for s in current_v4.network_object().subnets(new_prefix = scope_template.get("ipv4_prefix_length")):
-                    yield scope(s, parent = current_v4, allocation_length = scope_template.get("ipv4_allocation_length"))
-            if current_v6 != None:
-                for s in current_v6.network_object().subnets(new_prefix = scope_template.get("ipv6_prefix_length")):
-                    yield scope(s, parent = current_v6, allocation_length = scope_template.get("ipv6_allocation_length"))
+        while True:
+            if len(to_process) <= 0:
+                break
+            
+            current_parent = current_deserialized
+            current_deserialized = None
+            current = to_process.pop()
+            
+            if current.get("parent") != None and hash(
+                current.get("parent")) != hash(current_parent):
+                current_parent = None
+                
+            if current.get("ipv4_network"):
+                current_deserialized = self.parse_current_scopev4(current)
+                
+                yield current_deserialized
+                
+                if current.get("subnet_template") != None and current_deserialized != None:
+                    for index in self.template_to_scopes(
+                        schema, 
+                        current.get("subnet_template"), 
+                        current_deserialized):
+                        yield index
+                    
+                to_process = to_process + self.parse_nested_scopes_v4(current_deserialized, current)
+                
+            if current.get("ipv6_network"):
+                current_deserialized = self.parse_current_scopev6(current)
+                
+                yield current_deserialized
+                
+                if current.get("subnet_template") != None and current_deserialized != None:
+                    for index in self.template_to_scopes(
+                        schema, 
+                        current.get("subnet_template"), 
+                        current_deserialized, 
+                        which = "ipv6_prefix_length"):
+                        yield index
+                        
+                to_process = to_process + self.parse_nested_scopes_v6(current_deserialized, current)
+                
+    def parse_current_scopev4(self, current): 
+        current_deserialized = scope(get_network_object(
+                    current.get("ipv4_network"), 
+                    current.get("ipv4_prefix_length")),
+                tags = instantiate_tags(
+                    current.get("tags"), tag_type.scope)
+                    + instantiate_tags(
+                    current.get("tags"), tag_type.egress)
+                    + instantiate_tags(
+                    current.get("tags"), tag_type.ingress),
+                vrf_id = (current.get("vrf_id") != None 
+                            and current.get("vrf_id") 
+                            or self.default_vrf_id()),
+                parent = (current.get("parent") != None 
+                            and current.get("parent") 
+                            or None))
+                
+        return current_deserialized
+              
+    def parse_current_scopev6(self, current):
+        current_deserialized = scope(get_network_object(
+                    current.get("ipv6_network"), 
+                    current.get("ipv6_prefix_length")),
+                tags = instantiate_tags(
+                    current.get("tags"), tag_type.scope)
+                    + instantiate_tags(
+                    current.get("tags"), tag_type.egress)
+                    + instantiate_tags(
+                    current.get("tags"), tag_type.ingress),
+                vrf_id = (current.get("vrf_id") != None 
+                            and current.get("vrf_id") 
+                            or self.default_vrf_id()),
+                parent = (current.get("parent") != None 
+                            and current.get("parent") 
+                            or None))
+                
+        return current_deserialized
+    
+    def parse_nested_scopes_v6(self, current_deserialized, current):
+        if current.get("scopes") != None and len(current.get("scopes")) > 0:
+            nested_scopes = current.get("scopes")
+            for index in nested_scopes:
+                if index.get("ipv6_network") != None:
+                    index["parent"] = current_deserialized
+            return nested_scopes
+        return []
+                    
+    def parse_nested_scopes_v4(self, current_deserialized, current): 
+        if current.get("scopes") != None and len(current.get("scopes")) > 0:
+            nested_scopes = current.get("scopes")
+            for index in nested_scopes:
+                    if index.get("ipv4_network") != None:
+                        index["parent"] = current_deserialized
+            return nested_scopes
+        return []
+
+    def template_to_scopes(self, schema, template_name, parent, which = "ipv4_prefix_length"):
+        template = next((template for template in schema.get("templates") if template.get("name") == template_name))        
+        last, current, networks = None, None, None
+        
+        for scope_template in sorted(
+            [index for index in template.get("scopes") if index.get(which) != None],
+            key = lambda k: k.get(which)):
+                if last != None and last.prefixlen != scope_template.get(which):
+                    networks = last.subnets(new_prefix = scope_template.get(which))        
+                elif last == None:
+                    networks = parent.network_object().subnets(new_prefix = scope_template.get(which))
+
+                for current in networks:
+                    last = current
+                    yield scope(current,
+                        tags = instantiate_tags(
+                            scope_template.get("tags"), tag_type.scope)
+                            + instantiate_tags(
+                            scope_template.get("tags"), tag_type.egress)
+                            + instantiate_tags(
+                            scope_template.get("tags"), tag_type.ingress),
+                        vrf_id = (scope_template.get("vrf_id") != None 
+                                    and scope_template.get(vrf_id)
+                                    or self.default_vrf_id()),
+                        parent = parent)

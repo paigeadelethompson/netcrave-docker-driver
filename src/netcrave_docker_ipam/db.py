@@ -6,11 +6,8 @@ import os
 from enum import Enum, auto
 from psycopg.types.enum import EnumInfo, register_enum
 from psycopg.errors import InvalidCatalogName
+from netcrave_docker_ipam.label import tag_type
 
-class tag_type(Enum):
-    egress = auto()
-    ingress = auto()
-    scope = auto()
 
 class ipam_database_cursor():
     def __init__(self, db, tag_type_info):

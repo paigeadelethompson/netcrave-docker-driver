@@ -1,5 +1,10 @@
 from enum import Enum, auto
 
+class tag_type(Enum):
+    egress = auto()
+    ingress = auto()
+    scope = auto()
+
 class scope_label_masks(Enum):
     p__scope_tags = 0x8
     p__egress_tags = 0xf

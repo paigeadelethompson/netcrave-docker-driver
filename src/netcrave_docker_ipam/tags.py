@@ -1,5 +1,12 @@
-from netcrave_docker_ipam.db import ipam_database_client, tag_type
+from netcrave_docker_ipam.db import ipam_database_client
+from netcrave_docker_ipam.label import scope_label_masks, interface_type, tag_type
 
+def instantiate_tags(tags, kind):
+    if tags != None:
+        return [tag(kind, index) for index in tags]
+    else: 
+        return []
+    
 class tag():
     def __init__(self, tag_type, name, id = None):
         self._name = name
