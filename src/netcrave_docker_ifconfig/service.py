@@ -1,7 +1,8 @@
 from pyroute2 import IPRoute
 from pyroute2 import NDB
 from pyroute2 import NetNS
-from netcrave_docker_ipam.scope import scope, interface_type
+from netcrave_docker_ipam.scope import scope
+from netcrave_docker_ipam.label import interface_type
 from netcrave_docker_ipam.tags import tag
 
 class service():

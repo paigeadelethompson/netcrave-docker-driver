@@ -17,14 +17,20 @@ class tag():
 
     def exists(self, cursor):
         query = """
-        SELECT id, name, type, vrf_id, route_table_id, netns_name, label_mask 
+        SELECT id, name, type, vrf_id, route_table_id, netns_name, label_mask
         FROM pools.tags 
         WHERE name = %s AND type = %s
+        LIMIT 1
         """
-        row = cursor.cursor().execute(query, (self.name(), self.tag_type())).fetchone()
-        if row != None: 
-            self._id = row.get("id")
-        return row != None and True or False
+        (id, 
+         name, 
+         type, 
+         vrf_id, 
+         route_table_id, 
+         netns_name, 
+         label_mask) = cursor.cursor().execute(
+             query, (self.name(), self.tag_type())).fetchone()            
+        return id != None and True or False
 
     def save(self, cursor):
         if not self.exists(cursor):
@@ -35,9 +41,9 @@ class tag():
             """
             c = cursor.cursor()
             c.execute(query, (self.name(), self.tag_type()))
-            self._id = c.fetchone()[0]
+            self._id, _ = c.fetchone()
                            
-def get_tags(tags):
+def load_tags_from_database(tags):
     with ipam_database_client().database() as conn:
         cursor = conn.cursor()
         with conn.transaction():

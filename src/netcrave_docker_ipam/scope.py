@@ -3,19 +3,8 @@
 from netcrave_docker_ipam.db import ipam_database_client
 from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
 import uuid, datetime 
-from netcrave_docker_ipam.label import scope_label_masks 
-from enum import Enum, auto
+from netcrave_docker_ipam.label import scope_label_masks, interface_type
 
-class interface_type(Enum):
-    (amt, bareudp, bond, bridge, can, dsa, dummy, erspan, geneve, gre, gretap, gtp, 
-     hsr, ifb, ip6erspan, ip6gre, ip6gretap, ip6tnl, ipip, ipoib, ipvlan, ipvtap, 
-     lowpan, macsec, macvlan, macvtap, netdevsim, nlmon, rmnet, sit, vcan, veth, 
-     virt_wifi, vlan, vrf, vti, vxcan, vxlan, xfrm) = (
-         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), 
-         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), 
-         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), 
-         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto())
-         
 def get_network_object(network, prefix_length):
     net = ip_address(network)
     if type(net) == IPv4Address:
