@@ -5,6 +5,7 @@ import os
 
 from enum import Enum, auto
 from psycopg.types.enum import EnumInfo, register_enum
+from psycopg.errors import InvalidCatalogName
 
 class tag_type(Enum):
     egress = auto()
@@ -29,7 +30,7 @@ class ipam_database_cursor():
 
 class ipam_database_client():
     _create_db_query = """
-    CREATE DATABASE IF NOT EXISTS ipam;
+    CREATE DATABASE IF NOT EXISTS netcrave;
     """
 
     _create_schema_query = """
@@ -49,13 +50,15 @@ class ipam_database_client():
     allocation_length bytea NOT NULL DEFAULT '\x20'::bytea,
     vrf_id int DEFAULT 2,
     route_table_id int DEFAULT 2,
+    netns_name name, 
+    label_mask bytea,
     CONSTRAINT pools_index PRIMARY KEY (id),
     CONSTRAINT pools_identity UNIQUE (id, prefix_length)
     );
     ALTER TABLE IF EXISTS pools.scopes
     OWNER to root;
     """
-
+    
     _create_tag_type_query = """
     CREATE TYPE IF NOT EXISTS pools.tag AS ENUM
     ('ingress', 'egress', 'scope');
@@ -69,6 +72,10 @@ class ipam_database_client():
     id serial NOT NULL,
     type pools.tag NOT NULL,
     name name NOT NULL,
+    vrf_id int DEFAULT 2,
+    route_table_id int DEFAULT 2,
+    netns_name name, 
+    label_mask bytea,
     CONSTRAINT tags_index PRIMARY KEY (id),
     CONSTRAINT tags_identity UNIQUE (type, name)
     );
@@ -102,26 +109,42 @@ class ipam_database_client():
     def tag_type_info(self):
         return self._tag_type_info
 
-    def setup(self): 
-        self._conn = psycopg.connect(os.environ.get("DB_CONNECT_STRING"), autocommit=True)
-        self._tag_type_info = EnumInfo.fetch(self._conn, "pools.tag")
-        register_enum(self._tag_type_info, self._conn, tag_type)
-        
-    def __init__(self):
-        try:
-            self.setup()
-        except:
-            self.create_database()
-            self.setup()
+    def setup(self, conn_string = os.environ.get("DB_CONNECT_STRING"), ex = None): 
+        try: 
+            if ex != None:
+                self._conn = psycopg.connect(conn_string.replace("netcrave", "defaultdb"), autocommit=True)
+                self.create_database(ex)        
+                self._conn.close()
+                self._conn = psycopg.connect(conn_string, autocommit=True)
+                self.create_database()
+                self._tag_type_info = EnumInfo.fetch(self._conn, "pools.tag")
+                register_enum(self._tag_type_info, self._conn, tag_type)
+            else:
+                self._conn = psycopg.connect(conn_string, autocommit=True)
+                self._tag_type_info = EnumInfo.fetch(self._conn, "pools.tag")
+                register_enum(self._tag_type_info, self._conn, tag_type)
+        except InvalidCatalogName as e: 
+            if ex == None:
+                self.setup(ex = e)
+            else: 
+                raise Exception("first error: {} second error: {} couldn't create database".format(ex, e))
             
+    def __init__(self):
+        if os.environ.get("DB_CONNECT_STRING") == None:
+            raise NotImplementedError("env connection string required")
+        else:
+            self.setup()
+        
     def database(self):
         return ipam_database_cursor(self._conn, self._tag_type_info)
     
     def delete_database(self):
-        self._conn.execute("DROP DATABASE ipam")
+        self._conn.execute("DROP DATABASE netcrave")
                 
-    def create_database(self):
-        self._conn.execute(self._create_db_query)
+    def create_database(self, ex = None):
+        if ex != None: 
+            self._conn.execute(self._create_db_query)
+            return
         self._conn.execute(self._create_schema_query)
         self._conn.execute(self._create_tag_type_query)
         self._conn.execute(self._create_tag_table_query)

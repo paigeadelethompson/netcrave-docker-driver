@@ -3,7 +3,19 @@
 from netcrave_docker_ipam.db import ipam_database_client
 from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
 import uuid, datetime 
+from netcrave_docker_ipam.label import scope_label_masks 
+from enum import Enum, auto
 
+class interface_type(Enum):
+    (amt, bareudp, bond, bridge, can, dsa, dummy, erspan, geneve, gre, gretap, gtp, 
+     hsr, ifb, ip6erspan, ip6gre, ip6gretap, ip6tnl, ipip, ipoib, ipvlan, ipvtap, 
+     lowpan, macsec, macvlan, macvtap, netdevsim, nlmon, rmnet, sit, vcan, veth, 
+     virt_wifi, vlan, vrf, vti, vxcan, vxlan, xfrm) = (
+         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), 
+         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), 
+         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), 
+         auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto(), auto())
+         
 def get_network_object(network, prefix_length):
     net = ip_address(network)
     if type(net) == IPv4Address:
@@ -33,9 +45,12 @@ def get_ipv6_network_object_from_token(parent, token, prefix_len):
             + bytes(token_bytes) 
             + bytes([0] * zeroes)))).supernet(
                 new_prefix = prefix_len)
-
+            
 class scope():
     _modified = False
+
+    def __str__(self):
+        return str(self.network_object())
 
     def __init__(self,
                  network_object,
@@ -46,7 +61,8 @@ class scope():
                  tags              = [],
                  allocation_length = 32,
                  route_table_id    = 2,
-                 vrf_id            = 2):
+                 vrf_id            = 2,
+                 label_mask        = None):
         
         self._network_object = network_object
         self._parent = parent
@@ -56,14 +72,42 @@ class scope():
         self._allocation_length = allocation_length
         self._route_table_id = route_table_id
         self._vrf_id = vrf_id
-    
+        self._label_mask = label_mask
+            
     def allocation_length(self):
         return self._allocation_length
     
     def route_table_id(self):
         return self._route_table_id
     
-    def vrf_id(self):
+    def set_label(self, label_mask = scope_label_masks.default()):
+        self._label_mask = label_mask
+    
+    def network_interface_name(self):
+        raise NotImplementedError()
+    
+    def network_namespace(self):
+        raise NotImplementedError()
+    
+    def network_interface_kind(self):
+        if self.prefix_length() == 31 or self.prefix_length() == 127:
+            return interface_type.veth
+        elif self.network_object().network_address == Ipv4Address(
+            "169.254.169.254") or self.network_object(
+                ).network_address == Ipv6Address("fe80:ffff:ffff:ffff:ffff:ffff:ffff:ffff"):
+                return interface_type.dummy
+        elif self.prefix_length() == 32 or self.prefix_length() == 128: 
+            return interface_type.veth
+        else:
+            return interface_type.bridge
+    
+    def acquire_unallocated_address(self):
+        raise NotImplementedError()
+    
+    def network_gateway_address(self):
+        raise NotImplementedError()
+    
+    def network_vrf_id(self):
         return self._vrf_id
     
     def id(self):
@@ -84,6 +128,8 @@ class scope():
     def prefix_length(self):
         return self._network_object.prefixlen
     
+    def network_address(self):
+        return self._network_object.network_address
     def parent(self):
         return self._parent
 
@@ -106,7 +152,7 @@ class scope():
 
     def scope_tags(self, cursor):
         return [tag for tag in self._tags if tag.tag_type() == cursor.tag_type().enum.ingress]
-
+    
     def _save_scope_tag_fk(self, cursor):
         query = """
         INSERT INTO pools.scope_tags(scope, tag)

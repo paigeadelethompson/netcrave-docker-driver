@@ -17,7 +17,8 @@ class tag():
 
     def exists(self, cursor):
         query = """
-        SELECT * from pools.tags 
+        SELECT id, name, type, vrf_id, route_table_id, netns_name, label_mask 
+        FROM pools.tags 
         WHERE name = %s AND type = %s
         """
         row = cursor.cursor().execute(query, (self.name(), self.tag_type())).fetchone()
