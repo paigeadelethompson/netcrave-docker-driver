@@ -1,11 +1,11 @@
 [tool.poetry]
 name = "netcrave-docker-driver"
 version = "0.1.0"
-description = ""
+description = "Improved functionality for Docker for building advanced container environments"
 authors = ["Paige Thompson <paige@paige.bio>"]
 license = "GPL"
 readme = "README.md"
-packages = [{ include = "netcrave_docker_certificatemgr", from = "src" },{ include = "netcrave_docker_dnsd", from = "src" }, { include = "netcrave_docker_haproxyctl", from = "src" }, { include = "netcrave_docker_icap", from = "src" }, { include = "netcrave_docker_ipam", from = "src" }]
+packages = [{ include = "netcrave_docker_certificatemgr", from = "src" },{ include = "netcrave_docker_dnsd", from = "src" }, { include = "netcrave_docker_haproxyctl", from = "src" }, { include = "netcrave_docker_icap", from = "src" }, { include = "netcrave_docker_ipam", from = "src" }, { include = "netcrave_docker_davfs", from = "src" }, { include = "netcrave_docker_acme", from = "src" }, { include = "netcrave_docker_zmq", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -26,12 +26,14 @@ pywebdav3 = "^0.10.0"
 python-magic = "^0.4.27"
 unshare = "^0.22"
 landlock = "^1.0.0.dev4"
-
+fusepy = "^3.0.1"
+pyzmq = "^25.1.2"
+chacha20poly1305 = "^0.0.3"
+webdavclient3 = "^3.14.6"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
 
 [tool.poetry.scripts]
 dnsd = "netcrave_docker_dnsd:main"
@@ -40,3 +42,5 @@ haproxyctld = "netcrave_docker_haproxyctl:main"
 icapd = "netcrave_docker_icap:main"
 ifconfigd = "netcrave_docker_ifconfig:main"
 ipamd = "netcrave_docker_ipam:main"
+davfsd = "netcrave_docker_davfs:main"
+acmed = "netcrave_docker_acme:main"

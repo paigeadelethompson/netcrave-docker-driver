@@ -8,10 +8,21 @@ def instantiate_tags(tags, kind):
         return []
     
 class tag():
-    def __init__(self, tag_type, name, id = None):
+    def __init__(self, 
+                 tag_type, 
+                 name, id       = None, 
+                 vrf_id         = None, 
+                 route_table_id = None, 
+                 netns_name     = None, 
+                 label_mask     = None):
+        
         self._name = name
         self._type = tag_type
         self._id = id
+        self._vrf_id = vrf_id
+        self._route_table_id = route_table_id
+        self._netns_name = netns_name
+        self._label_mask = label_mask
 
     def name(self):
         return self._name

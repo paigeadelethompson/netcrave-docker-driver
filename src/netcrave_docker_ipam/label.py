@@ -6,12 +6,12 @@ class tag_type(Enum):
     scope = auto()
 
 class scope_label_masks(Enum):
-    p__scope_tags = 0x8
-    p__egress_tags = 0xf
-    p__ingress_tags = 0x20
+    p__scope_tags     = 0x8
+    p__egress_tags    = 0xf
+    p__ingress_tags   = 0x20
     p__route_table_id = 0x40
-    p__vrf_id = 0x80
-    p__network_ns = 0xff
+    p__vrf_id         = 0x80
+    p__network_ns     = 0xff
     
     def default():
         return (scope_label_masks.p__egress_tags.value

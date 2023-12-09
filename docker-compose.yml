@@ -186,7 +186,30 @@ services:
       netcrave-docker-driver-fluentd:
         ipv4_address: 192.0.0.38
         ipv6_address: 2001:db8:aaaa:aabd:192:0:0:38
-        
+  davfs:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:davfs
+    build:
+      context: .
+      dockerfile: ./docker/davfs/Dockerfile
+    networks:
+      netcrave-docker-driver-davfs:
+        ipv4_address: 192.0.0.42
+        ipv6_address: 2001:db8:aaaa:aabe:192:0:0:42
+  acme:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:acme
+    build:
+      context: .
+      dockerfile: ./docker/davfs/Dockerfile
+    networks:
+      netcrave-docker-driver-acme:
+        ipv4_address: 192.0.0.46
+        ipv6_address: 2001:db8:aaaa:aabd:192:0:0:46
 networks:
   netcrave-docker-driver-ipam:
     enable_ipv6: true
@@ -247,4 +270,16 @@ networks:
     ipam:
       config:
         - subnet: 192.0.0.36/30
+        - subnet: 2001:db8:aaaa:aabd::/64
+  netcrave-docker-driver-davfs:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.40/30
+        - subnet: 2001:db8:aaaa:aabe::/64
+  netcrave-docker-driver-acme:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 192.0.0.44/30
         - subnet: 2001:db8:aaaa:aabd::/64

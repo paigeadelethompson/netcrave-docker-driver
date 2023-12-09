@@ -10,12 +10,14 @@ from haproxyadmin.backend import Backend
 from haproxyadmin.utils import (is_unix_socket, cmd_across_all_procs, converter,
                                 calculate, isint, should_die, check_command,
                                 check_output, compare_values, connected_socket)
+
 from haproxyadmin.exceptions import CommandFailed
 from haproxyadmin import HAProxy
 from haproxyadmin.internal.haproxy import _HAProxyProcess
 from haproxyadmin.utils import (info2dict, stat2dict)
 from haproxyadmin.exceptions import (SocketTransportError, SocketTimeout,
                                      SocketConnectionError)
+
 from haproxyadmin.internal.frontend import _Frontend
 from haproxyadmin.internal.backend import _Backend
 
@@ -52,6 +54,4 @@ class HAProxyProcessCustom(_HAProxyProcess):
     
 class HAProxyCustom(HAProxy): 
     def __init__(self):
-        self._hap_processes.append(
-                _HAProxyProcessCustom()
-            )
+        self._hap_processes.append(_HAProxyProcessCustom())

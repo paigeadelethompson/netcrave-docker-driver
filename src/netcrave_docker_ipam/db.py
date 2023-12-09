@@ -142,9 +142,9 @@ class ipam_database_client():
         if ex != None: 
             self._conn.execute(self._create_db_query)
             return
+        
         self._conn.execute(self._create_schema_query)
         self._conn.execute(self._create_tag_type_query)
         self._conn.execute(self._create_tag_table_query)
         self._conn.execute(self._create_scope_table_query)
         self._conn.execute(self._create_scope_tag_table_query)
-        

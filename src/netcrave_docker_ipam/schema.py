@@ -140,7 +140,7 @@ class schema():
                 current_parent = None
                 
             if current.get("ipv4_network"):
-                current_deserialized = self.parse_current_scopev4(current)
+                current_deserialized = self.parse_current_scope(current, "ipv4")
                 
                 yield current_deserialized
                 
@@ -148,13 +148,14 @@ class schema():
                     for index in self.template_to_scopes(
                         schema, 
                         current.get("subnet_template"), 
-                        current_deserialized):
+                        current_deserialized
+                        which = "ipv4_prefix_length"):
                         yield index
                     
-                to_process = to_process + self.parse_nested_scopes_v4(current_deserialized, current)
+                to_process = to_process + self.parse_nested_scopes_v4(current_deserialized, current, "ipv4_network")
                 
             if current.get("ipv6_network"):
-                current_deserialized = self.parse_current_scopev6(current)
+                current_deserialized = self.parse_current_scope(current, "ipv6")
                 
                 yield current_deserialized
                 
@@ -166,37 +167,21 @@ class schema():
                         which = "ipv6_prefix_length"):
                         yield index
                         
-                to_process = to_process + self.parse_nested_scopes_v6(current_deserialized, current)
-                
-    def parse_current_scopev4(self, current): 
+                to_process = to_process + self.parse_nested_scopes_v6(current_deserialized, current, "ipv6_network")
+    
+    def parse_current_scope(self, current, which = "ipv4"):
+        net_key = "{}_network".format(which)
+        prefix_length_key = "{}_prefix_length".format(which)
+        
         current_deserialized = scope(get_network_object(
-                    current.get("ipv4_network"), 
-                    current.get("ipv4_prefix_length")),
+                    current.get(net_key), 
+                    current.get(prefix_length_key)),
                 tags = instantiate_tags(
-                    current.get("tags"), tag_type.scope)
-                    + instantiate_tags(
-                    current.get("tags"), tag_type.egress)
-                    + instantiate_tags(
-                    current.get("tags"), tag_type.ingress),
-                vrf_id = (current.get("vrf_id") != None 
-                            and current.get("vrf_id") 
-                            or self.default_vrf_id()),
-                parent = (current.get("parent") != None 
-                            and current.get("parent") 
-                            or None))
-                
-        return current_deserialized
-              
-    def parse_current_scopev6(self, current):
-        current_deserialized = scope(get_network_object(
-                    current.get("ipv6_network"), 
-                    current.get("ipv6_prefix_length")),
-                tags = instantiate_tags(
-                    current.get("tags"), tag_type.scope)
-                    + instantiate_tags(
-                    current.get("tags"), tag_type.egress)
-                    + instantiate_tags(
-                    current.get("tags"), tag_type.ingress),
+                            current.get("tags"), tag_type.scope)
+                            + instantiate_tags(
+                            current.get("tags"), tag_type.egress)
+                            + instantiate_tags(
+                            current.get("tags"), tag_type.ingress),
                 vrf_id = (current.get("vrf_id") != None 
                             and current.get("vrf_id") 
                             or self.default_vrf_id()),
@@ -206,24 +191,15 @@ class schema():
                 
         return current_deserialized
     
-    def parse_nested_scopes_v6(self, current_deserialized, current):
+    def parse_nested_scopes(self, current_deserialized, current, which = "ipv4_network"):
         if current.get("scopes") != None and len(current.get("scopes")) > 0:
             nested_scopes = current.get("scopes")
             for index in nested_scopes:
-                if index.get("ipv6_network") != None:
+                if index.get(which) != None:
                     index["parent"] = current_deserialized
             return nested_scopes
         return []
-                    
-    def parse_nested_scopes_v4(self, current_deserialized, current): 
-        if current.get("scopes") != None and len(current.get("scopes")) > 0:
-            nested_scopes = current.get("scopes")
-            for index in nested_scopes:
-                    if index.get("ipv4_network") != None:
-                        index["parent"] = current_deserialized
-            return nested_scopes
-        return []
-
+    
     def template_to_scopes(self, schema, template_name, parent, which = "ipv4_prefix_length"):
         template = next((template for template in schema.get("templates") if template.get("name") == template_name))        
         last, current, networks = None, None, None
@@ -240,11 +216,11 @@ class schema():
                     last = current
                     yield scope(current,
                         tags = instantiate_tags(
-                            scope_template.get("tags"), tag_type.scope)
-                            + instantiate_tags(
-                            scope_template.get("tags"), tag_type.egress)
-                            + instantiate_tags(
-                            scope_template.get("tags"), tag_type.ingress),
+                                    scope_template.get("tags"), tag_type.scope)
+                                    + instantiate_tags(
+                                    scope_template.get("tags"), tag_type.egress)
+                                    + instantiate_tags(
+                                    scope_template.get("tags"), tag_type.ingress),
                         vrf_id = (scope_template.get("vrf_id") != None 
                                     and scope_template.get(vrf_id)
                                     or self.default_vrf_id()),

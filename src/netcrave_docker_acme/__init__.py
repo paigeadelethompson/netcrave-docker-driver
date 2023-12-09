@@ -1,9 +1,9 @@
-from netcrave_docker_certificatemgr.http import run_cert_mgr, run_job_processor
+from netcrave_docker_acme.http import run_acme, run_job_processor
 from threading import Thread
 import time
 
 def main():
-    t2 = Thread(target=run_cert_mgr)
+    t2 = Thread(target=run_acme)
     t3 = Thread(target=run_job_processor)
     
     t2.run()
