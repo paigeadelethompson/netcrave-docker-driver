@@ -3,11 +3,12 @@ from stat import S_IFDIR, S_IFLNK, S_IFREG
 from time import time
 
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
+from webdav3.client import Client
 
 class fuse_dav_filesystem(LoggingMixIn, Operations):
      def __init__(self, remote):
          if remote == "certificate":
-             self.remote = "certificate"
+             self.remote = "2001:db8:aaaa:aabe:192:0:0:42"
          else:
             raise NotImplementedError()
         

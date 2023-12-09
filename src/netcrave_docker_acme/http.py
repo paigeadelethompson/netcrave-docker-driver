@@ -1,7 +1,8 @@
-import os
-from flask import Flask, request, Response
-from werkzeug.serving import run_simple
+# IAmPaigeAT (paige@paige.bio) 2023
 
+import os, time
+from flask import Flask, request, Response
+from netcrave_docker_util.http import http_server
 from netcrave_docker_zmq.processor import processor
 from netcrave_docker_acme.acme import initiate_lets_encrypt_request
 
@@ -14,6 +15,8 @@ processor = processor(lambda message: queue_new_job(message), os.environ.get("AC
 
 acme = Flask(__name__)
 
+servers = http_servers(acme)
+
 @acme.route('/.well-known/acme-challenge/', methods = ['POST'])
 def well_known_acme_challenge():
     raise NotImplementedError()
@@ -25,8 +28,7 @@ def run_job_processor():
         processor.run()
 
 def run_acme():
-    run_simple(
-        hostname     = os.environ.get("ACME_LISTEN_ADDR"),
-        application  = acme, 
-        use_reloader = True)
-
+    for index in servers:
+        servers.get("thread").start()
+    for index in servers:
+        servers.get("thread").join()

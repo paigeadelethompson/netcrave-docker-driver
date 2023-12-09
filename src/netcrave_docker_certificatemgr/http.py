@@ -3,6 +3,7 @@ from flask import Flask, request, Response
 from werkzeug.serving import run_simple
 
 from netcrave_docker_acme.acme import initiate_lets_encrypt_request
+from netcrave_docker_davfs.dav_mem_backed_handler import memory_backed_descriptor
 
 def acme_result(message):
     raise NotImplementedError()

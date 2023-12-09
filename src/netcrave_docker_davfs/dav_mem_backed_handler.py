@@ -105,21 +105,8 @@ class FilesystemHandler(dav_interface):
     def get_childs(self, uri, filter=None):
         self._fs.children(uri)
     
-    def _get_listing(self, path)
-        template = textwrap.dedent("""
-            <html>
-                <head><title>Directory listing for {path}</title></head>
-                <body>
-                    <h1>Directory listing for {path}</h1>
-                    <hr>
-                    <ul>
-                    {items}
-                    </ul>
-                    <hr>
-                </body>
-            </html>
-            """.format(path, "\n".join(['<li><a href="{index}">{index}</a></li>'.format(str(index)) for index in self.get_childs(path)])
-        return template
+    def _get_listing(self, path):
+        raise NotImplementedError()
 
     def get_data(self, uri, range = None):
         return Resource(self._fs.traverse(uri).data())
@@ -147,56 +134,39 @@ class FilesystemHandler(dav_interface):
     
     def mkcol(self,uri):
         raise NotImplementedError()
-
-    ### ?? should we do the handler stuff for DELETE, too ?
-    ### (see below)
-
+    
     def rmcol(self,uri):
         raise NotImplementedError()
 
     def rm(self,uri):
         raise NotImplementedError()
 
-    ###
-    ### DELETE handlers (examples)
-    ### (we use the predefined methods in davcmd instead of doing
-    ### a rm directly
-    ###
-
-    def delone(self,uri):
+    def delone(self, uri):
         raise NotImplementedError()
 
-    def deltree(self,uri):
+    def deltree(self, uri):
         raise NotImplementedError()
 
-    ###
-    ### MOVE handlers (examples)
-    ###
-
-    def moveone(self,src,dst,overwrite):
+    def moveone(self, src, dst, overwrite):
         raise NotImplementedError()
 
-    def movetree(self,src,dst,overwrite):
+    def movetree(self, src, dst, overwrite):
         raise NotImplementedError()
 
-    ###
-    ### COPY handlers
-    ###
-
-    def copyone(self,src,dst,overwrite):
+    def copyone(self, src, dst, overwrite):
         raise NotImplementedError()
 
-    def copytree(self,src,dst,overwrite):
+    def copytree(self, src, dst, overwrite):
         raise NotImplementedError()
     
-    def copy(self,src,dst):
+    def copy(self, src, dst):
         raise NotImplementedError()
     
     def copycol(self, src, dst):
         raise NotImplementedError()
     
-    def exists(self,uri):
+    def exists(self, uri):
         raise NotImplementedError()
 
-    def is_collection(self,uri):
+    def is_collection(self, uri):
        raise NotImplementedError()
