@@ -24,6 +24,12 @@ class tag():
         self._netns_name = netns_name
         self._label_mask = label_mask
 
+    def vrf_id(self):
+        return self._vrf_id
+
+    def netns_name(self):
+        return self._netns_name
+    
     def name(self):
         return self._name
 

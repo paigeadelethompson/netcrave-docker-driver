@@ -1,0 +1,20 @@
+[Unit]
+Description=Netcrave docker container service
+Documentation=https://github.com/paigeadelethompson/netcrave-docker-driver
+After=network-online.target _netcrave.socket firewalld.service containerd.service time-set.target
+Wants=network-online.target containerd.service
+Requires=docker.socket
+
+[Service]
+Type=notify
+ExecStartPre=-/usr/bin/env ip netns add _netcrave
+ExecStartPre=/usr/bin/env ip netns exec _netcrave ip link set lo up
+ExecStartPre=/usr/bin/env ip link add ns0ma0 type veth peer name ns0sl0
+ExecStartPre=sudo ip link set 'ns0sl0' netns _netcrave
+ExecStartPre=/usr/bin/env mount --bind /proc/self/ns/net /run/netns/_netcrave
+ExecStart=/opt/docker/dockerd --config-file=/etc/netcrave/_netcrave.json
+ExecReload=/bin/kill -s HUP $MAINPID
+NetworkNamespacePath=/run/netns/_netcrave
+
+[Install]
+WantedBy=multi-user.target

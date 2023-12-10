@@ -23,7 +23,7 @@ class service():
     
     def _create_net_namespaces(self):
         for index in get_ipam_scope_tags():
-            self.ndb().sources.add(netns = index.name())
+            self.ndb().sources.add(netns = index.netns_name())
     
     def _create_vrf_interfaces(self):
         for index in get_ipam_scope_tags():        
@@ -58,9 +58,3 @@ class service():
             
     def configure_network_routes(self, net):
         raise NotImplementedError()
-    
-def get_ipam_scope_tags():
-    query = """
-    SELECT * FROM pools.scopes
-    """
-    pass

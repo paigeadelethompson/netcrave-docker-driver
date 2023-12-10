@@ -1,0 +1,56 @@
+{
+  "bip": "198.51.100.1/25",
+  "containerd": "/run/containerd/containerd.sock",
+  "data-root": "/srv/_netcrave/data",
+  "default-address-pools": [
+    {
+      "base": "198.51.100.128/25",
+      "size": 29
+    }
+  ],
+  "default-shm-size": "64K",
+  "default-ulimits": {
+    "nofile": {
+      "Hard": 64,
+      "Name": "nofile",
+      "Soft": 64
+    }
+  },
+  "dns": ["2001:db8:aaaa:aaae:192:0:0:18", "192.0.0.18"],
+  "dns-search": [".local"],
+  "exec-root": "/srv/_netcrave/state",
+  "fixed-cidr-v6": "fc00::/64",
+  "group": "_netcrave",
+  "hosts": ["/run/_netcrave/_sock"],
+  "proxies": {
+    "http-proxy": "http://proxy.local:3128",
+    "https-proxy": "https://proxy.local:443",
+    "no-proxy": "*.local",
+  },
+  "ip-forward": true,
+  "ip-masq": false,
+  "iptables": false,
+  "ip6tables": false,
+  "ipv6": true,
+  "live-restore": true,
+  "log-driver": "json-file",
+  "log-level": "",
+  "log-opts": {
+    "cache-disabled": "false",
+    "cache-max-file": "2",
+    "cache-max-size": "64m",
+    "cache-compress": "true",
+    "max-file": "4",
+    "max-size": "128m"
+  },
+  "mtu": 9000,
+  "pidfile": "/srv/_netcrave/docker.pid",
+  "selinux-enabled": true,
+  "shutdown-timeout": 64,
+  "tls": true,
+  "tlscacert": "/etc/netcrave/ssl/ca.pem",
+  "tlscert": "/etc/netcrave/ssl/_netcrave.pem",
+  "tlskey": "/etc/netcrave/ssl/_netcrave.key",
+  "tlsverify": true,
+  "userns-remap": "default"
+}

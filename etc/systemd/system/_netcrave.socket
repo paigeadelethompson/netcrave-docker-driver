@@ -1,0 +1,11 @@
+[Unit]
+Description=Socket for Netcrave Docker driver host
+
+[Socket]
+ListenStream=/run/_netcrave/sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=_netcrave
+
+[Install]
+WantedBy=sockets.target
