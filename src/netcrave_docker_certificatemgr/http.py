@@ -29,12 +29,12 @@ cert_mgr = Flask(__name__)
     "TRACE", 
     "UNLOCK"])
 def dav_request(request): 
-    pass 
+    pass
 
 def run_job_processor():
         processor.run()
 
-servers = http_servers(cert_mgr, bind_addresses = [("unix://run/netcrave/sock", 0, False, 0.5)])
+servers = http_servers(cert_mgr, bind_addresses = [(os.environ.get("LISTEN_SOCKET"), 0, False, 0.5)])
 
 def run_cert_mgr():
     for index in servers:

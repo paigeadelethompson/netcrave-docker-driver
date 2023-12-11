@@ -30,10 +30,6 @@ services:
       netcrave-docker-driver-ipam:
         ipv4_address: 192.0.0.2
         ipv6_address: 2001:db8:aaaa:aaaa:192:0:0:2
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
     volumes:
       - /run/netcrave/docker/ifconfig
   ifconfig:
@@ -48,10 +44,6 @@ services:
       netcrave-docker-driver-ifconfig:
         ipv4_address: 192.0.0.6
         ipv6_address: 2001:db8:aaaa:aaab:192:0:0:6
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
     volumes:
       - /run/netcrave/docker/ifconfig
   haproxycfg:
@@ -66,10 +58,6 @@ services:
       netcrave-docker-driver-haproxycfg:
         ipv4_address: 192.0.0.10
         ipv6_address: 2001:db8:aaaa:aaac:192:0:0:10
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
   certificatemgr:
     depends_on:
         netcrave-docker-image:
@@ -86,10 +74,6 @@ services:
       netcrave-docker-driver-certificatemgr:
         ipv4_address: 192.0.0.14
         ipv6_address: 2001:db8:aaaa:aaad:192:0:0:14
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
   dnsd:
     depends_on:
         netcrave-docker-image:
@@ -102,10 +86,6 @@ services:
       netcrave-docker-driver-dnsd:
         ipv4_address: 192.0.0.18
         ipv6_address: 2001:db8:aaaa:aaae:192:0:0:18
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
   icap:
     depends_on:
         netcrave-docker-image:
@@ -118,10 +98,6 @@ services:
       netcrave-docker-driver-icap:
         ipv4_address: 192.0.0.22
         ipv6_address: 2001:db8:aaaa:aaaf:192:0:0:22
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
   haproxy:
     depends_on:
         netcrave-image:
@@ -136,10 +112,6 @@ services:
       netcrave-docker-driver-haproxy:
         ipv4_address: 192.0.0.26
         ipv6_address: 2001:db8:aaaa:aaba:192:0:0:26
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
   squid:
     depends_on:
         netcrave-image:
@@ -154,10 +126,6 @@ services:
       netcrave-docker-driver-squid:
         ipv4_address: 192.0.0.30
         ipv6_address: 2001:db8:aaaa:aabb:192:0:0:30
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
   cockroach:
     depends_on:
         netcrave-image:
@@ -170,10 +138,6 @@ services:
       netcrave-docker-driver-cockroach:
         ipv4_address: 192.0.0.34
         ipv6_address: 2001:db8:aaaa:aabc:192:0:0:34
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 192.0.0.38
   fluentd:
     depends_on:
         netcrave-image:
@@ -209,7 +173,7 @@ services:
     networks:
       netcrave-docker-driver-acme:
         ipv4_address: 192.0.0.46
-        ipv6_address: 2001:db8:aaaa:aabd:192:0:0:46
+        ipv6_address: 2001:db8:aaaa:aabf:192:0:0:46
 networks:
   netcrave-docker-driver-ipam:
     enable_ipv6: true
@@ -282,4 +246,4 @@ networks:
     ipam:
       config:
         - subnet: 192.0.0.44/30
-        - subnet: 2001:db8:aaaa:aabd::/64
+        - subnet: 2001:db8:aaaa:aabf::/64
