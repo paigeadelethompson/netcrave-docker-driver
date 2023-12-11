@@ -9,7 +9,7 @@ import json
 class processor():
     def __init__(self, callback = lambda message: True, listen_addr = os.environ.get("PROCESSOR_LISTEN_ADDR")):
         self._context = zmq.Context()
-        self._socket = context.socket(zmq.REP)
+        self._socket = self._context.socket(zmq.REP)
         self._socket.bind(listen_addr)
         self._callback = callback
         self._cip = ChaCha20Poly1305(os.environ.get("NETCRAVE_PRESHARED_KEY"))

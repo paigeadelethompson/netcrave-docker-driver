@@ -2,7 +2,6 @@ import os
 from flask import Flask, request, Response
 from werkzeug.serving import run_simple
 from netcrave_docker_davfs.fs import fuse_dav_filesystem 
-from flask_classful import FlaskView, route
 import json
 
 volume_driver = Flask(__name__)

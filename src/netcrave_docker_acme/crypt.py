@@ -25,7 +25,7 @@ class crypto():
          csr_pem = crypto_util.make_csr(pkey_pem, [domain_name])
          return pkey_pem, csr_pem
 
-     def select_http01_challenge_from_order(self, orderr):
+    def select_http01_challenge_from_order(self, orderr):
          authz_list = orderr.authorizations
 
          for authz in authz_list:
@@ -35,23 +35,23 @@ class crypto():
 
          raise Exception('HTTP-01 challenge was not offered by the CA server.')
      
-     def create_account_key(self):
+    def create_account_key(self):
         acc_key = jose.JWKRSA(
         key = rsa.generate_private_key(
                     public_exponent = 65537,
                     key_size = os.environ.get("ACME_KEY_SIZE"),
                                           backend = default_backend()))
 
-     def staging_register_account_and_accept_TOS(self, acc_key, which = "ACME_STAGING_URL"):
+    def staging_register_account_and_accept_TOS(self, acc_key, which = "ACME_STAGING_URL"):
          net = client.ClientNetwork(acc_key, user_agent = os.environ.get("ACME_USER_AGENT"))
          directory = client.ClientV2.get_directory(os.environ.get("ACME_STAGING_URL"), net)
          client_acme = client.ClientV2(directory, net = net)
          regr = client_acme.new_account(
              messages.NewRegistration.from_data(
-                 email = os.environ.get("ACME_EMAIL"), terms_of_service_agreed = os.environ.get("ACME_TOS_AGREE"))
+                 email = os.environ.get("ACME_EMAIL"), terms_of_service_agreed = os.environ.get("ACME_TOS_AGREE")))
 
          return client_acme
 
-     def order_new_certificate(self, client_acme, csr):
+    def order_new_certificate(self, client_acme, csr):
          orderr = client_acme.new_order(csr_pem)
 

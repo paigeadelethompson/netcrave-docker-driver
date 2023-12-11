@@ -1,6 +1,105 @@
 version: '3.8'
 
 services:
+  ca:
+    image: paigeadele/compose-certificate-roller
+    command:
+      - /bin/sh 
+      - -c 
+      - |
+        easyrsa init-pki
+        easyrsa build-ca nopass
+        cp -r /etc/ssl/* /certificatemgr
+        cp -r /etc/ssl/* /davfs
+        cp -r /etc/ssl/* /haproxy
+        cp -r /etc/ssl/* /acme
+        cp -r /etc/ssl/* /squid
+        cp -r /etc/ssl/* /fluent
+        cp -r /etc/ssl/* /icap
+        cp -r /etc/ssl/* /haproxyctl
+        cp /ca/private/ca.crt /certificatemgr/certs
+        cp /ca/private/ca.crt /davfs/certs
+        cp /ca/private/ca.crt /haproxy/certs
+        cp /ca/private/ca.crt /acme/certs
+        cp /ca/private/ca.crt /squid/certs
+        cp /ca/private/ca.crt /icap/certs
+        cp /ca/private/ca.crt /haproxyctl/certs
+        cp /ca/private/ca.crt /crdb/
+        easyrsa gen-req certificatemgr nopass
+        easyrsa gen-req davfs nopass
+        easyrsa gen-req haproxy nopass
+        easyrsa gen-req acme nopass
+        easyrsa gen-req squid nopass
+        easyrsa gen-req fluent nopass
+        easyrsa gen-req icap nopass
+        easyrsa gen-req haproxyctl nopass     
+        easyrsa gen-req crdb-node nopass
+        easyrsa gen-req crdb-client-root nopass
+        easyrsa gen-req crdb-client-ipam nopass
+        easyrsa gen-req crdb-client-ifconfig nopass
+        easyrsa gen-req crdb-client-dnsd nopass
+        easyrsa gen-req crdb-client-icap nopass
+        easyrsa gen-req crdb-client-certificatemgr nopass
+        easyrsa gen-req crdb-client-acme nopass
+        easyrsa sign-req server certificatemgr nopass
+        easyrsa sign-req client davfs nopass
+        easyrsa sign-req server haproxy nopass
+        easyrsa sign-req server acme nopass
+        easyrsa sign-req server squid nopass
+        easyrsa sign-req server fluent nopass
+        easyrsa sign-req server icap nopass
+        easyrsa sign-req server haproxyctl nopass
+        easyrsa sign-req server crdb-node nopass
+        easyrsa sign-req client crdb-client-root nopass
+        easyrsa sign-req client crdb-client-ipam nopass
+        easyrsa sign-req client crdb-client-ifconfig nopass
+        easyrsa sign-req client crdb-client-dnsd nopass
+        easyrsa sign-req client crdb-client-icap nopass
+        easyrsa sign-req client crdb-client-certificatemgr nopass
+        easyrsa sign-req client crdb-client-acme nopass
+        cp /ca/private/issued/certificatemgr.crt /certificatemgr/
+        cp /ca/private/issued/davfs.crt /davfs/
+        cp /ca/private/issued/haproxy.crt /haproxy/
+        cp /ca/private/issued/acme.crt /acme/
+        cp /ca/private/issued/squid.crt /squid/
+        cp /ca/private/issued/fluent.crt /fluent/
+        cp /ca/private/issued/icap.crt /icap/
+        cp /ca/private/issued/haproxyctl.crt /haproxyctl/                
+        cp /ca/private/issued/crdb-node.crt /crdb/
+        cp /ca/private/issued/crdb-client-root.crt /crdb/
+        cp /ca/private/issued/crdb-client-ipam.crt /crdb/
+        cp /ca/private/issued/crdb-client-ifconfig.crt /crdb/
+        cp /ca/private/issued/crdb-client-dnsd.crt /crdb/
+        cp /ca/private/issued/crdb-client-icap.crt /crdb/
+        cp /ca/private/issued/crdb-client-certificatemgr.crt /crdb/
+        cp /ca/private/issued/crdb-client-acme.crt /crdb/                
+        cp /ca/private/private/certificatemgr.key /certificatemgr/
+        cp /ca/private/private/davfs.key /davfs/
+        cp /ca/private/private/haproxy.key /haproxy/
+        cp /ca/private/private/acme.key /acme/
+        cp /ca/private/private/squid.key /squid/
+        cp /ca/private/private/fluent.key /fluent/
+        cp /ca/private/private/icap.key /icap/
+        cp /ca/private/private/haproxyctl.key /haproxyctl/        
+        cp /ca/private/private/crdb-node.key /crdb/
+        cp /ca/private/private/crdb-client-root.key /crdb/
+        cp /ca/private/private/crdb-client-ipam.key /crdb/
+        cp /ca/private/private/crdb-client-ifconfig.key /crdb/
+        cp /ca/private/private/crdb-client-dnsd.key /crdb/
+        cp /ca/private/private/crdb-client-icap.key /crdb/
+        cp /ca/private/private/crdb-client-certificatemgr.key /crdb/
+        cp /ca/private/private/crdb-client-acme.key /crdb/
+    volumes:
+      - ca_easyrsa:/ca/private
+      - certificatemgr_ssl:/certificatemgr
+      - davfs_ssl:/davfs
+      - haproxy_ssl:/haproxy
+      - acme_ssl:/acme
+      - squid_ssl:/squid
+      - fluent_ssl:/fluent
+      - icap_ssl:/icap
+      - haproxyctl_ssl:/haproxyctl
+      - crdb_ssl:/crdb
   netcrave-image:
     image: netcrave
     build:
@@ -247,3 +346,15 @@ networks:
       config:
         - subnet: 192.0.0.44/30
         - subnet: 2001:db8:aaaa:aabf::/64
+
+volumes:
+    ca_easyrsa:
+    certificatemgr_ssl:
+    davfs_ssl:
+    haproxy_ssl:
+    acme_ssl:
+    squid_ssl:
+    crdb_ssl:
+    fluent_ssl:
+    icap_ssl:
+    haproxyctl_ssl:

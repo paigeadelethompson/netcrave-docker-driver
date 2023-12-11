@@ -27,7 +27,7 @@ class memory_backed_descriptor():
                  parent = None, 
                  data = bytes(0), 
                  mime = None,
-                 init = True)
+                 init = True):
         
         self._path = path
         self._parent = parent
@@ -80,7 +80,8 @@ class Resource(object):
         return len(self._data)
 
     def __iter__(self):
-        for index in self._data
+        for index in self._data:
+            pass
 
     def read(self, length = 0):
         return self._data

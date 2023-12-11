@@ -16,13 +16,13 @@ class shared_secret_crypto():
         
     def encrypt(self, data):
         serialized = json.dumps(data)
-        encrypted = self._cip.encrypt(os.environ.get(, serialized)
+        encrypted = self._cip.encrypt(self.nonce(), serialized)
         serialized_encrypted = base64.encode(encrypted, 'ascii')
         return serialized_encrypted
     
     def decrypt(self, data):
         deserialized = base64.decodebytes(data)
-        decrypted = self._cip.decrypt(os.environ.get(self.nonce(), deserialized)
+        decrypted = self._cip.decrypt(self.nonce(), deserialized)
         decrypted_deserialized = json.loads(decrypted)
         return decrypted_deserialized
         

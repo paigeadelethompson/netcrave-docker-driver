@@ -2,8 +2,8 @@
 
 import os, time
 from flask import Flask, request, Response
-from netcrave_docker_util.http import http_server
-from netcrave_docker_zmq.processor import processor
+from netcrave_docker_util.http import http_servers
+from netcrave_docker_util.processor import processor
 from netcrave_docker_acme.acme import initiate_lets_encrypt_request
 
 jobs = {}

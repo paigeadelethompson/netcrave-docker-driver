@@ -1,8 +1,8 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
 from flask import Flask, request, Response
-from netcrave_docker_util.ssl_context import ssl_context 
-from flask_api import status
+#from netcrave_docker_util.ssl_context import ssl_context 
+from ssl import SSLContext as ssl_context
 from netcrave_docker_util.crypt import shared_secret_crypto
 
 class netcrave_flask(Flask):
@@ -16,6 +16,7 @@ class netcrave_flask(Flask):
         raise NotImplementedError()
     
     def _create_auth(self, request):
+        raise NotImplementedError()
         if request.is_secure:
             return Response(status = 401)
         else:            
@@ -27,6 +28,6 @@ class netcrave_flask(Flask):
             else: 
                 return Response(status = 400)
             
-    def __init__(self):
-        super(Child, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(netcrave_flask, self).__init__(*args, **kwargs)
         self._ssl_context = ssl_context()
