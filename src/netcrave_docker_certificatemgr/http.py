@@ -12,7 +12,11 @@ def acme_result(message):
 
 #processor = processor(lambda message: acme_result(message), os.environ.get("ACME_PROCESSOR_LISTEN_ADDR"))
 
-cert_mgr = netcrave_flask(__name__)
+cert_mgr = netcrave_flask(
+    __name__, 
+    cert_path = "/etc/ssl/certificatemgr.crt", 
+    key_path = "/etc/ssl/certificatemgr.key", 
+    ca_path = "/etc/ssl/certs/ca.crt")
 """
 "GET", 
     "HEAD", 

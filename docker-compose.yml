@@ -16,15 +16,16 @@ services:
         cp -r /etc/ssl/* /squid
         cp -r /etc/ssl/* /fluent
         cp -r /etc/ssl/* /icap
-        cp -r /etc/ssl/* /haproxyctl
+        cp -r /etc/ssl/* /haproxycfg
+        cp -r /etc/ssl/* /ipam
+        cp -r /etc/ssl/* /ifconfig
         cp /ca/private/ca.crt /certificatemgr/certs
         cp /ca/private/ca.crt /davfs/certs
         cp /ca/private/ca.crt /haproxy/certs
         cp /ca/private/ca.crt /acme/certs
         cp /ca/private/ca.crt /squid/certs
         cp /ca/private/ca.crt /icap/certs
-        cp /ca/private/ca.crt /haproxyctl/certs
-        cp /ca/private/ca.crt /crdb/
+        cp /ca/private/ca.crt /haproxycfg/certs
         easyrsa gen-req certificatemgr nopass
         easyrsa gen-req davfs nopass
         easyrsa gen-req haproxy nopass
@@ -32,15 +33,7 @@ services:
         easyrsa gen-req squid nopass
         easyrsa gen-req fluent nopass
         easyrsa gen-req icap nopass
-        easyrsa gen-req haproxyctl nopass     
-        easyrsa gen-req crdb-node nopass
-        easyrsa gen-req crdb-client-root nopass
-        easyrsa gen-req crdb-client-ipam nopass
-        easyrsa gen-req crdb-client-ifconfig nopass
-        easyrsa gen-req crdb-client-dnsd nopass
-        easyrsa gen-req crdb-client-icap nopass
-        easyrsa gen-req crdb-client-certificatemgr nopass
-        easyrsa gen-req crdb-client-acme nopass
+        easyrsa gen-req haproxycfg nopass     
         easyrsa sign-req server certificatemgr nopass
         easyrsa sign-req client davfs nopass
         easyrsa sign-req server haproxy nopass
@@ -48,15 +41,7 @@ services:
         easyrsa sign-req server squid nopass
         easyrsa sign-req server fluent nopass
         easyrsa sign-req server icap nopass
-        easyrsa sign-req server haproxyctl nopass
-        easyrsa sign-req server crdb-node nopass
-        easyrsa sign-req client crdb-client-root nopass
-        easyrsa sign-req client crdb-client-ipam nopass
-        easyrsa sign-req client crdb-client-ifconfig nopass
-        easyrsa sign-req client crdb-client-dnsd nopass
-        easyrsa sign-req client crdb-client-icap nopass
-        easyrsa sign-req client crdb-client-certificatemgr nopass
-        easyrsa sign-req client crdb-client-acme nopass
+        easyrsa sign-req server haproxycfg nopass
         cp /ca/private/issued/certificatemgr.crt /certificatemgr/
         cp /ca/private/issued/davfs.crt /davfs/
         cp /ca/private/issued/haproxy.crt /haproxy/
@@ -64,15 +49,7 @@ services:
         cp /ca/private/issued/squid.crt /squid/
         cp /ca/private/issued/fluent.crt /fluent/
         cp /ca/private/issued/icap.crt /icap/
-        cp /ca/private/issued/haproxyctl.crt /haproxyctl/                
-        cp /ca/private/issued/crdb-node.crt /crdb/
-        cp /ca/private/issued/crdb-client-root.crt /crdb/
-        cp /ca/private/issued/crdb-client-ipam.crt /crdb/
-        cp /ca/private/issued/crdb-client-ifconfig.crt /crdb/
-        cp /ca/private/issued/crdb-client-dnsd.crt /crdb/
-        cp /ca/private/issued/crdb-client-icap.crt /crdb/
-        cp /ca/private/issued/crdb-client-certificatemgr.crt /crdb/
-        cp /ca/private/issued/crdb-client-acme.crt /crdb/                
+        cp /ca/private/issued/haproxycfg.crt /haproxycfg/                
         cp /ca/private/private/certificatemgr.key /certificatemgr/
         cp /ca/private/private/davfs.key /davfs/
         cp /ca/private/private/haproxy.key /haproxy/
@@ -80,17 +57,13 @@ services:
         cp /ca/private/private/squid.key /squid/
         cp /ca/private/private/fluent.key /fluent/
         cp /ca/private/private/icap.key /icap/
-        cp /ca/private/private/haproxyctl.key /haproxyctl/        
-        cp /ca/private/private/crdb-node.key /crdb/
-        cp /ca/private/private/crdb-client-root.key /crdb/
-        cp /ca/private/private/crdb-client-ipam.key /crdb/
-        cp /ca/private/private/crdb-client-ifconfig.key /crdb/
-        cp /ca/private/private/crdb-client-dnsd.key /crdb/
-        cp /ca/private/private/crdb-client-icap.key /crdb/
-        cp /ca/private/private/crdb-client-certificatemgr.key /crdb/
-        cp /ca/private/private/crdb-client-acme.key /crdb/
+        cp /ca/private/private/haproxycfg.key /haproxycfg/
+        cat /haproxy/haproxy.key > /haproxy/crt_and_key.pem
+        cat /haproxy/haproxy.crt >> /haproxy/crt_and_key.pem
     volumes:
       - ca_easyrsa:/ca/private
+      - ipam_ssl:/ipam
+      - ifconfig_ssl:/ifconfig
       - certificatemgr_ssl:/certificatemgr
       - davfs_ssl:/davfs
       - haproxy_ssl:/haproxy
@@ -98,8 +71,178 @@ services:
       - squid_ssl:/squid
       - fluent_ssl:/fluent
       - icap_ssl:/icap
-      - haproxyctl_ssl:/haproxyctl
-      - crdb_ssl:/crdb
+      - haproxycfg_ssl:/haproxycfg
+  cockroach-ca:
+    depends_on:
+        ca:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-ca --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-client-ca:
+    depends_on:
+        cockroach-ca:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client-ca --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key --allow-ca-key-reuse
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-tenant-client-ca:
+    depends_on:
+        cockroach-client-ca:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-tenant-client-ca --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key --allow-ca-key-reuse
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-node:
+    depends_on:
+        cockroach-tenant-client-ca:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-node --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key \
+            localhost 127.0.0.1 2001:db8:aaaa:aabc:192:0:0:34 192.0.0.34 localhost *.local
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-root:
+    depends_on:
+        cockroach-node:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key root
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-ipam:
+    depends_on:
+        cockroach-root:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key ipam
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-ifconfig:
+    depends_on:
+        cockroach-ipam:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key ifconfig
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-dnsd:
+    depends_on:
+        cockroach-ifconfig:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key dnsd
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-certificatemgr:
+    depends_on:
+        cockroach-dnsd:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key certificatemgr
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-acme:
+    depends_on:
+        cockroach-certificatemgr:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key acme
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-copy-certs:
+    depends_on:
+        cockroach-acme:        
+            condition: service_completed_successfully  
+    image: debian
+    command: 
+        - /bin/sh
+        - -c 
+        - |
+            cp /cockroach/certs/client.ipam.* /ipam ; cp /cockroach/certs/ca.crt /ipam/crdb.ca.crt
+            cp /cockroach/certs/client.ifconfig.* /ifconfig ; cp /cockroach/certs/ca.crt /ipam/crdb.ca.crt
+    volumes:
+        - ipam_ssl:/ipam
+        - ifconfig_ssl:/ifconfig
+        - certificatemgr_ssl:/certificatemgr
+        - davfs_ssl:/davfs
+        - haproxy_ssl:/haproxy
+        - acme_ssl:/acme
+        - squid_ssl:/squid
+        - fluent_ssl:/fluent
+        - icap_ssl:/icap
+        - haproxycfg_ssl:/haproxycfg
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach:
+    depends_on:
+        cockroach-copy-certs:
+            condition: service_completed_successfully        
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: "start-single-node --certs-dir /cockroach/certs --listen-addr=:26257"
+    networks:
+      netcrave-docker-driver-cockroach:
+        ipv4_address: 192.0.0.34
+        ipv6_address: 2001:db8:aaaa:aabc:192:0:0:34
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
   netcrave-image:
     image: netcrave
     build:
@@ -131,6 +274,7 @@ services:
         ipv6_address: 2001:db8:aaaa:aaaa:192:0:0:2
     volumes:
       - /run/netcrave/docker/ifconfig
+      - ipam_ssl:/etc/ssl
   ifconfig:
     depends_on:
         netcrave-docker-image:
@@ -145,6 +289,7 @@ services:
         ipv6_address: 2001:db8:aaaa:aaab:192:0:0:6
     volumes:
       - /run/netcrave/docker/ifconfig
+      - ifconfig_ssl:/etc/ssl
   haproxycfg:
     depends_on:
         netcrave-docker-image:
@@ -157,6 +302,8 @@ services:
       netcrave-docker-driver-haproxycfg:
         ipv4_address: 192.0.0.10
         ipv6_address: 2001:db8:aaaa:aaac:192:0:0:10
+    volumes:
+        - haproxycfg_ssl:/etc/ssl
   certificatemgr:
     depends_on:
         netcrave-docker-image:
@@ -173,6 +320,8 @@ services:
       netcrave-docker-driver-certificatemgr:
         ipv4_address: 192.0.0.14
         ipv6_address: 2001:db8:aaaa:aaad:192:0:0:14
+    volumes: 
+        - certificatemgr_ssl:/etc/ssl
   dnsd:
     depends_on:
         netcrave-docker-image:
@@ -185,6 +334,8 @@ services:
       netcrave-docker-driver-dnsd:
         ipv4_address: 192.0.0.18
         ipv6_address: 2001:db8:aaaa:aaae:192:0:0:18
+    volumes:
+        - dnsd_ssl:/etc/ssl
   icap:
     depends_on:
         netcrave-docker-image:
@@ -197,11 +348,17 @@ services:
       netcrave-docker-driver-icap:
         ipv4_address: 192.0.0.22
         ipv6_address: 2001:db8:aaaa:aaaf:192:0:0:22
+    volumes:
+        - icap_ssl:/etc/ssl
   haproxy:
     depends_on:
         netcrave-image:
             condition: service_completed_successfully        
     image: netcrave:haproxy
+    command: 
+        - haproxy
+        - -f 
+        - /docker/haproxy/templates/etc/haproxy/haproxy.cfg
     build:
       context: .
       args:
@@ -211,6 +368,8 @@ services:
       netcrave-docker-driver-haproxy:
         ipv4_address: 192.0.0.26
         ipv6_address: 2001:db8:aaaa:aaba:192:0:0:26
+    volumes:
+        - haproxy_ssl:/etc/ssl
   squid:
     depends_on:
         netcrave-image:
@@ -225,18 +384,8 @@ services:
       netcrave-docker-driver-squid:
         ipv4_address: 192.0.0.30
         ipv6_address: 2001:db8:aaaa:aabb:192:0:0:30
-  cockroach:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
-    image: netcrave:cockroach
-    build:
-      context: .
-      dockerfile: ./docker/cockroach/Dockerfile
-    networks:
-      netcrave-docker-driver-cockroach:
-        ipv4_address: 192.0.0.34
-        ipv6_address: 2001:db8:aaaa:aabc:192:0:0:34
+    volumes: 
+        - squid_ssl:/etc/ssl
   fluentd:
     depends_on:
         netcrave-image:
@@ -249,6 +398,8 @@ services:
       netcrave-docker-driver-fluentd:
         ipv4_address: 192.0.0.38
         ipv6_address: 2001:db8:aaaa:aabd:192:0:0:38
+    volumes:
+        - fluent_ssl:/etc/ssl
   davfs:
     depends_on:
         netcrave-image:
@@ -261,6 +412,8 @@ services:
       netcrave-docker-driver-davfs:
         ipv4_address: 192.0.0.42
         ipv6_address: 2001:db8:aaaa:aabe:192:0:0:42
+    volumes:
+        - davfs_ssl:/etc/ssl
   acme:
     depends_on:
         netcrave-image:
@@ -273,6 +426,8 @@ services:
       netcrave-docker-driver-acme:
         ipv4_address: 192.0.0.46
         ipv6_address: 2001:db8:aaaa:aabf:192:0:0:46
+    volumes:
+        - acme_ssl:/etc/ssl
 networks:
   netcrave-docker-driver-ipam:
     enable_ipv6: true
@@ -353,8 +508,14 @@ volumes:
     davfs_ssl:
     haproxy_ssl:
     acme_ssl:
+    dnsd_ssl:
     squid_ssl:
     crdb_ssl:
+    crdb:
+    crdb_ca_key:
+    crdb_ca_easyrsa:
     fluent_ssl:
     icap_ssl:
-    haproxyctl_ssl:
+    haproxycfg_ssl:
+    ipam_ssl:
+    ifconfig_ssl:
