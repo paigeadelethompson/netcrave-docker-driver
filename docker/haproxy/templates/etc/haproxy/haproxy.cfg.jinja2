@@ -13,29 +13,36 @@ defaults
   timeout server-fin 1s
   
 resolvers _netcrave
-  nameserver resolver_v4 192.0.0.18:53
-  nameserver resolver_v6 [2001:db8:aaaa:aaae:192:0:0:18]:53
+  nameserver resolver_v4 {{DNSD_IP4}}:53
+  nameserver resolver_v6 [{{DNSD_IP6}}]:53
   
 frontend fe-http
   mode http
   acl well-known-acme path -m beg -i /.well-known/acme-challenge
-  bind [2001:db8:aaaa:aaba:192:0:0:26]:80
-  bind 192.0.0.26:80
-  bind [2001:db8:aaaa:aaba:192:0:0:26]:443 ssl crt /etc/ssl/crt_and_key.pem
-  bind 192.0.0.26:443 ssl crt /etc/ssl/crt_and_key.pem
+  bind [{{HAPROXY_IP6}}]:80
+  bind {{HAPROXY_IP4}}:80
+  bind [{{HAPROXY_IP6}}]:443 ssl crt /etc/ssl/crt_and_key.pem
+  bind {{HAPROXY_IP4}}:443 ssl crt /etc/ssl/crt_and_key.pem
   use_backend be-acme if well-known-acme
   
 backend be-acme
   mode http
-  server acme [2001:db8:aaaa:aabd:192:0:0:46]:443 check send-proxy ssl ca-file /etc/ssl/certs/ca.crt
+  server acme [{{ACME_IP6}}]:443 check send-proxy ssl ca-file /etc/ssl/certs/ca.crt
 
 backend be-firewall
   mode http
-  server squid 192.0.0.30:3128 check send-proxy ssl ca-file /etc/ssl/certs/ca.crt
+  server squid [{{SQUID_IP6}}]:3128 check send-proxy ssl ca-file /etc/ssl/certs/ca.crt
+
+{% for index in range(NUM_BACKENDS_SSL | int) %}
+backend be-ssl-{{ index }}
+  mode http
+  balance leastconn
+  server-template srv-{{ index }} 1-3 _srv-{{ index }}._https._tcp.local resolvers _netcrave check ssl ca-file /etc/ssl/certs/ca.crt init-addr none 
+{% endfor %}
 
 {% for index in range(NUM_BACKENDS | int) %}
 backend be-{{ index }}
   mode http
   balance leastconn
-  server-template srv-{{ index }} 1-3 _srv-{{ index }}._https._tcp.local resolvers _netcrave check ssl ca-file /etc/ssl/certs/ca.crt init-addr none 
+  server-template srv-{{ index }} 1-3 _srv-{{ index }}._http._tcp.local resolvers _netcrave check init-addr none 
 {% endfor %}

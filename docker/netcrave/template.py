@@ -12,9 +12,10 @@ for index in chain.from_iterable([["{}/{}".format(
     "/opt", topdown=True, onerror=None, followlinks=False) if len(z) > 0]):
 
     cur_path = Path(next(islice(Path(index).parents, 1)))
-    #out_path = Path("/") / Path("/".join(islice(cur_path.parts, 4, None)))
+    out_path = Path("/") / Path("/".join(islice(cur_path.parts, 4, None)))
     
-    out_path = Path("/") / Path("/".join([cur_path.parts[4:]))
+    #out_path = Path("/") / Path("/".join([cur_path.parts[4:])) ### XXX FIXME doesn't trim the path down correctly, 
+                                          # if TEMPLATE_ROOT build arg isnt set, but maybe that's ok
 
     print("current path: {}".format(cur_path))
     print("output path: {}".format(out_path))

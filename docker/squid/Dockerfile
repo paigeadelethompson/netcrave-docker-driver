@@ -14,4 +14,4 @@ RUN rm -rf /opt/conf
 
 ARG ADMIN_SOCKET_ADDR
 
-CMD squid
+CMD squid --foreground

@@ -60,6 +60,8 @@ services:
         cp /ca/private/private/haproxycfg.key /haproxycfg/
         cat /haproxy/haproxy.key > /haproxy/crt_and_key.pem
         cat /haproxy/haproxy.crt >> /haproxy/crt_and_key.pem
+        cat /squid/squid.key > /squid/crt_and_key.pem 
+        cat /squid/squid.crt >> /squid/crt_and_key.pem
     volumes:
       - ca_easyrsa:/ca/private
       - ipam_ssl:/ipam
@@ -121,7 +123,7 @@ services:
       dockerfile: ./docker/cockroach/Dockerfile
     command: |
             cert create-node --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key \
-            localhost 127.0.0.1 2001:db8:aaaa:aabc:192:0:0:34 192.0.0.34 localhost *.local
+            localhost 127.0.0.1 *.local ${COCKROACH_IP6} ${COCKROACH_IP4}
     volumes:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
@@ -190,22 +192,9 @@ services:
     volumes:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
-  cockroach-acme:
-    depends_on:
-        cockroach-certificatemgr:        
-            condition: service_completed_successfully  
-    image: netcrave:cockroach
-    build:
-      context: .
-      dockerfile: ./docker/cockroach/Dockerfile
-    command: |
-            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key acme
-    volumes:
-        - crdb:/cockroach/cockroach-data
-        - crdb_ssl:/cockroach/certs
   cockroach-copy-certs:
     depends_on:
-        cockroach-acme:        
+        cockroach-certificatemgr:        
             condition: service_completed_successfully  
     image: debian
     command: 
@@ -218,13 +207,8 @@ services:
         - ipam_ssl:/ipam
         - ifconfig_ssl:/ifconfig
         - certificatemgr_ssl:/certificatemgr
-        - davfs_ssl:/davfs
         - haproxy_ssl:/haproxy
-        - acme_ssl:/acme
-        - squid_ssl:/squid
-        - fluent_ssl:/fluent
         - icap_ssl:/icap
-        - haproxycfg_ssl:/haproxycfg
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
   cockroach:
@@ -238,8 +222,8 @@ services:
     command: "start-single-node --certs-dir /cockroach/certs --listen-addr=:26257"
     networks:
       netcrave-docker-driver-cockroach:
-        ipv4_address: 192.0.0.34
-        ipv6_address: 2001:db8:aaaa:aabc:192:0:0:34
+        ipv4_address: ${COCKROACH_IP4}
+        ipv6_address: ${COCKROACH_IP6}
     volumes:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
@@ -267,11 +251,11 @@ services:
       context: .
       dockerfile: ./docker/ipam/Dockerfile
     environment:
-      DB_CONNECT_STRING: ${IPAM_DB_CONNECT_STRING}
+      DB_CONNECT_STRING: postgresql://ipam[${COCKROACH_IP4}]:26257/ipam?sslcert=/etc/ssl/client.ifconfig.crt&sslkey=/etc/ssl/client.ifconfig.key&sslmode=verify-full&sslrootcert=/etc/ssl/crdb.ca.crt
     networks:
       netcrave-docker-driver-ipam:
-        ipv4_address: 192.0.0.2
-        ipv6_address: 2001:db8:aaaa:aaaa:192:0:0:2
+        ipv4_address: ${IPAM_IP4}
+        ipv6_address: ${IPAM_IP6}
     volumes:
       - /run/netcrave/docker/ifconfig
       - ipam_ssl:/etc/ssl
@@ -283,10 +267,12 @@ services:
     build:
       context: .
       dockerfile: ./docker/ifconfig/Dockerfile
+    environment:
+        IFCONFIG_DB_CONNECT_STRING: postgresql://ifconfig@[${COCKROACH_IP4}]:26257/ifconfig?sslcert=/etc/ssl/client.ifconfig.crt&sslkey=/etc/ssl/client.ifconfig.key&sslmode=verify-full&sslrootcert=/etc/ssl/crdb.ca.crt
     networks:
       netcrave-docker-driver-ifconfig:
-        ipv4_address: 192.0.0.6
-        ipv6_address: 2001:db8:aaaa:aaab:192:0:0:6
+        ipv4_address: ${IFCONFIG_IP4}
+        ipv6_address: ${IFCONFIG_IP6}
     volumes:
       - /run/netcrave/docker/ifconfig
       - ifconfig_ssl:/etc/ssl
@@ -300,10 +286,11 @@ services:
       dockerfile: ./docker/haproxycfg/Dockerfile
     networks:
       netcrave-docker-driver-haproxycfg:
-        ipv4_address: 192.0.0.10
-        ipv6_address: 2001:db8:aaaa:aaac:192:0:0:10
+        ipv4_address: ${HAPROXYCFG_IP4}
+        ipv6_address: ${HAPROXYCFG_IP6}
     volumes:
         - haproxycfg_ssl:/etc/ssl
+        - /srv/_netcrave/haproxy:/haproxy
   certificatemgr:
     depends_on:
         netcrave-docker-image:
@@ -313,13 +300,11 @@ services:
       context: .
       dockerfile: ./docker/certificatemgr/Dockerfile
     environment:
-      DB_CONNECT_STRING: ${IPAM_DB_CONNECT_STRING}
-      HTTP_PROXY: http://[2001:db8:aaaa:aabb:192:0:0:30]:3128
-      HTTPS_PROXY: http://[2001:db8:aaaa:aabb:192:0:0:30]:3128
+      DB_CONNECT_STRING: postgresql://certificatemgr@[2001:db8:aaaa:aabc:192:0:0:34]:26257/certificatemgr?sslcert=/etc/ssl/client.certificatemgr.crt&sslkey=/etc/ssl/client.certificatemgr.key&sslmode=verify-full&sslrootcert=/etc/ssl/crdb.ca.crt
     networks:
       netcrave-docker-driver-certificatemgr:
-        ipv4_address: 192.0.0.14
-        ipv6_address: 2001:db8:aaaa:aaad:192:0:0:14
+        ipv4_address: ${CERTIFICATEMGR_IP4}
+        ipv6_address: ${CERTIFICATEMGR_IP6}
     volumes: 
         - certificatemgr_ssl:/etc/ssl
   dnsd:
@@ -332,8 +317,8 @@ services:
       dockerfile: ./docker/dnsd/Dockerfile
     networks:
       netcrave-docker-driver-dnsd:
-        ipv4_address: 192.0.0.18
-        ipv6_address: 2001:db8:aaaa:aaae:192:0:0:18
+        ipv4_address: ${DNSD_IP4}
+        ipv6_address: ${DNSD_IP6}
     volumes:
         - dnsd_ssl:/etc/ssl
   icap:
@@ -346,8 +331,8 @@ services:
       dockerfile: ./docker/icap/Dockerfile
     networks:
       netcrave-docker-driver-icap:
-        ipv4_address: 192.0.0.22
-        ipv6_address: 2001:db8:aaaa:aaaf:192:0:0:22
+        ipv4_address: ${ICAP_IP4}
+        ipv6_address: ${ICAP_IP6}
     volumes:
         - icap_ssl:/etc/ssl
   haproxy:
@@ -355,21 +340,18 @@ services:
         netcrave-image:
             condition: service_completed_successfully        
     image: netcrave:haproxy
-    command: 
-        - haproxy
-        - -f 
-        - /docker/haproxy/templates/etc/haproxy/haproxy.cfg
     build:
       context: .
       args:
-        ADMIN_SOCKET_ADDR: "[2001:db8:aaaa:aaba:192:0:0:26]:23"
+        TEMPLATE_ROOT: ./docker/haproxy/templates
       dockerfile: ./docker/haproxy/Dockerfile
     networks:
       netcrave-docker-driver-haproxy:
-        ipv4_address: 192.0.0.26
-        ipv6_address: 2001:db8:aaaa:aaba:192:0:0:26
+        ipv4_address: ${HAPROXY_IP4}
+        ipv6_address: ${HAPROXY_IP6}
     volumes:
         - haproxy_ssl:/etc/ssl
+        - /srv/_netcrave/haproxy/:/ctl_sock
   squid:
     depends_on:
         netcrave-image:
@@ -382,8 +364,8 @@ services:
       dockerfile: ./docker/squid/Dockerfile
     networks:
       netcrave-docker-driver-squid:
-        ipv4_address: 192.0.0.30
-        ipv6_address: 2001:db8:aaaa:aabb:192:0:0:30
+        ipv4_address: ${SQUID_IP4}
+        ipv6_address: ${SQUID_IP6}
     volumes: 
         - squid_ssl:/etc/ssl
   fluentd:
@@ -394,10 +376,12 @@ services:
     build:
       context: .
       dockerfile: ./docker/fluentd/Dockerfile
+      args:
+        TEMPLATE_ROOT: ./docker/fluentd/templates
     networks:
       netcrave-docker-driver-fluentd:
-        ipv4_address: 192.0.0.38
-        ipv6_address: 2001:db8:aaaa:aabd:192:0:0:38
+        ipv4_address: ${FLUENTD_IP4}
+        ipv6_address: ${FLUENTD_IP6}
     volumes:
         - fluent_ssl:/etc/ssl
   davfs:
@@ -410,8 +394,8 @@ services:
       dockerfile: ./docker/davfs/Dockerfile
     networks:
       netcrave-docker-driver-davfs:
-        ipv4_address: 192.0.0.42
-        ipv6_address: 2001:db8:aaaa:aabe:192:0:0:42
+        ipv4_address: ${DAVFS_IP4}
+        ipv6_address: ${DAVFS_IP6}
     volumes:
         - davfs_ssl:/etc/ssl
   acme:
@@ -422,85 +406,113 @@ services:
     build:
       context: .
       dockerfile: ./docker/davfs/Dockerfile
+    environment:
+        HTTP_PROXY: http://[${SQUID_IP6}]:3128
+        HTTPS_PROXY: http://[${SQUID_IP6}]:3128
     networks:
       netcrave-docker-driver-acme:
-        ipv4_address: 192.0.0.46
-        ipv6_address: 2001:db8:aaaa:aabf:192:0:0:46
+        ipv4_address: ${ACME_IP4}
+        ipv6_address: ${ACME_IP6}
     volumes:
         - acme_ssl:/etc/ssl
+  frr-netcrave:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:frr
+    build:
+      context: .
+      dockerfile: ./docker/frr/Dockerfile
+      args:
+        TEMPLATE_ROOT: ./docker/haproxy/templates
+    network_mode: host
+    privileged: true
+  frr-docker:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:frr
+    build:
+      context: .
+      dockerfile: ./docker/frr/Dockerfile
+      args:
+        TEMPLATE_ROOT: ./docker/haproxy/templates
+    network_mode: host
+    privileged: true
+    
 networks:
   netcrave-docker-driver-ipam:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.0/30
-        - subnet: 2001:db8:aaaa:aaaa::/64
+        - subnet: ${IPAM_NET_4}
+        - subnet: ${IPAM_NET_6}
   netcrave-docker-driver-ifconfig:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.4/30
-        - subnet: 2001:db8:aaaa:aaab::/64
+        - subnet: ${IFCONFIG_NET_4}
+        - subnet: ${IFCONFIG_NET_6}
   netcrave-docker-driver-haproxycfg:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.8/30
-        - subnet: 2001:db8:aaaa:aaac::/64
+        - subnet: ${HAPROXYCFG_NET_4}
+        - subnet: ${HAPROXYCFG_NET_6}
   netcrave-docker-driver-certificatemgr:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.12/30
-        - subnet: 2001:db8:aaaa:aaad::/64
+        - subnet: ${CERTIFICATEMGR_NET_4}
+        - subnet: ${CERTIFICATEMGR_NET_6}
   netcrave-docker-driver-dnsd:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.16/30
-        - subnet: 2001:db8:aaaa:aaae::/64
+        - subnet: ${DNSD_NET_4}
+        - subnet: ${DNSD_NET_6}
   netcrave-docker-driver-icap:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.20/30
-        - subnet: 2001:db8:aaaa:aaaf::/64
+        - subnet: ${ICAP_NET_4}
+        - subnet: ${ICAP_NET_6}
   netcrave-docker-driver-haproxy:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.24/30
-        - subnet: 2001:db8:aaaa:aaba::/64
+        - subnet: ${HAPROXY_NET_4}
+        - subnet: ${HAPROXY_NET_6}
   netcrave-docker-driver-squid:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.28/30
-        - subnet: 2001:db8:aaaa:aabb::/64
+        - subnet: ${SQUID_NET_4}
+        - subnet: ${SQUID_NET_6}
   netcrave-docker-driver-cockroach:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.32/30
-        - subnet: 2001:db8:aaaa:aabc::/64
+        - subnet: ${COCKROACH_NET_4}
+        - subnet: ${COCKROACH_NET_6}
   netcrave-docker-driver-fluentd:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.36/30
-        - subnet: 2001:db8:aaaa:aabd::/64
+        - subnet: ${FLUENTD_NET_4}
+        - subnet: ${FLUENTD_NET_6}
   netcrave-docker-driver-davfs:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.40/30
-        - subnet: 2001:db8:aaaa:aabe::/64
+        - subnet: ${DAVFS_NET_4}
+        - subnet: ${DAVFS_NET_6}
   netcrave-docker-driver-acme:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 192.0.0.44/30
-        - subnet: 2001:db8:aaaa:aabf::/64
+        - subnet: ${ACME_NET_4}
+        - subnet: ${ACME_NET_6}
 
 volumes:
     ca_easyrsa:
