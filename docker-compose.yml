@@ -19,6 +19,7 @@ services:
         cp -r /etc/ssl/* /haproxycfg
         cp -r /etc/ssl/* /ipam
         cp -r /etc/ssl/* /ifconfig
+        cp -r /etc/ssl/* /powerdns
         cp /ca/private/ca.crt /certificatemgr/certs
         cp /ca/private/ca.crt /davfs/certs
         cp /ca/private/ca.crt /haproxy/certs
@@ -26,6 +27,7 @@ services:
         cp /ca/private/ca.crt /squid/certs
         cp /ca/private/ca.crt /icap/certs
         cp /ca/private/ca.crt /haproxycfg/certs
+        cp /ca/private/ca.crt /powerdns/certs
         easyrsa gen-req certificatemgr nopass
         easyrsa gen-req davfs nopass
         easyrsa gen-req haproxy nopass
@@ -34,6 +36,7 @@ services:
         easyrsa gen-req fluent nopass
         easyrsa gen-req icap nopass
         easyrsa gen-req haproxycfg nopass     
+        easyrsa gen-req powerdns nopass     
         easyrsa sign-req server certificatemgr nopass
         easyrsa sign-req client davfs nopass
         easyrsa sign-req server haproxy nopass
@@ -42,6 +45,7 @@ services:
         easyrsa sign-req server fluent nopass
         easyrsa sign-req server icap nopass
         easyrsa sign-req server haproxycfg nopass
+        easyrsa sign-req server powerdns nopass
         cp /ca/private/issued/certificatemgr.crt /certificatemgr/
         cp /ca/private/issued/davfs.crt /davfs/
         cp /ca/private/issued/haproxy.crt /haproxy/
@@ -49,7 +53,8 @@ services:
         cp /ca/private/issued/squid.crt /squid/
         cp /ca/private/issued/fluent.crt /fluent/
         cp /ca/private/issued/icap.crt /icap/
-        cp /ca/private/issued/haproxycfg.crt /haproxycfg/                
+        cp /ca/private/issued/haproxycfg.crt /haproxycfg/             
+        cp /ca/private/issued/powerdns.crt /powerdns/                
         cp /ca/private/private/certificatemgr.key /certificatemgr/
         cp /ca/private/private/davfs.key /davfs/
         cp /ca/private/private/haproxy.key /haproxy/
@@ -58,6 +63,7 @@ services:
         cp /ca/private/private/fluent.key /fluent/
         cp /ca/private/private/icap.key /icap/
         cp /ca/private/private/haproxycfg.key /haproxycfg/
+        cp /ca/private/issued/powerdns.crt /powerdns/                
         cat /haproxy/haproxy.key > /haproxy/crt_and_key.pem
         cat /haproxy/haproxy.crt >> /haproxy/crt_and_key.pem
         cat /squid/squid.key > /squid/crt_and_key.pem 
@@ -74,6 +80,7 @@ services:
       - fluent_ssl:/fluent
       - icap_ssl:/icap
       - haproxycfg_ssl:/haproxycfg
+      - powerdns_ssl:/powerdns
   cockroach-ca:
     depends_on:
         ca:        
@@ -192,9 +199,25 @@ services:
     volumes:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
-  cockroach-copy-certs:
+  cockroach-powerdns:
     depends_on:
         cockroach-certificatemgr:        
+            condition: service_completed_successfully  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            cert create-client --certs-dir /cockroach/certs --ca-key /cockroach/certs/ca.key powerdns
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+    volumes:
+        - crdb:/cockroach/cockroach-data
+        - crdb_ssl:/cockroach/certs
+  cockroach-copy-certs:
+    depends_on:
+        cockroach-powerdns:        
             condition: service_completed_successfully  
     image: debian
     command: 
@@ -202,7 +225,8 @@ services:
         - -c 
         - |
             cp /cockroach/certs/client.ipam.* /ipam ; cp /cockroach/certs/ca.crt /ipam/crdb.ca.crt
-            cp /cockroach/certs/client.ifconfig.* /ifconfig ; cp /cockroach/certs/ca.crt /ipam/crdb.ca.crt
+            cp /cockroach/certs/client.ifconfig.* /ifconfig ; cp /cockroach/certs/ca.crt /ifconfig/crdb.ca.crt
+            cp /cockroach/certs/client.powerdns.* /powerdns ; cp /cockroach/certs/ca.crt /powerdns/crdb.ca.crt
     volumes:
         - ipam_ssl:/ipam
         - ifconfig_ssl:/ifconfig
@@ -211,10 +235,12 @@ services:
         - icap_ssl:/icap
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
+        - powerdns_ssl:/powerdns
+
   cockroach:
-    # depends_on:
-    #     cockroach-copy-certs:
-    #         condition: service_completed_successfully        
+    depends_on:
+        cockroach-copy-certs:        
+            condition: service_completed_successfully  
     image: netcrave:cockroach
     build:
       context: .
@@ -227,6 +253,113 @@ services:
     volumes:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
+  cockroach-databases:
+    volumes:
+        - crdb_ssl:/cockroach/certs
+    network_mode: host
+    depends_on:
+        cockroach:        
+            condition: service_started  
+    image: netcrave:cockroach
+    build:
+      context: .
+      dockerfile: ./docker/cockroach/Dockerfile
+    command: |
+            sql --certs-dir /cockroach/certs --host=${COCKROACH_IP4} -e "
+            CREATE USER ipam WITH PASSWORD NULL;
+            CREATE USER ifconfig WITH PASSWORD NULL;
+            CREATE USER powerdns WITH PASSWORD NULL;
+            CREATE DATABASE IF NOT EXISTS ipam;
+            CREATE DATABASE IF NOT EXISTS ifconfig;
+            CREATE DATABASE IF NOT EXISTS powerdns;
+            GRANT ALL ON DATABASE ipam to ipam;
+            GRANT ALL ON DATABASE ifconfig to ifconfig;
+            GRANT ALL ON DATABASE powerdns to powerdns;
+            CREATE TABLE domains (
+            id                    BIGSERIAL PRIMARY KEY,
+            name                  VARCHAR(255) NOT NULL,
+            master                VARCHAR(128) DEFAULT NULL,
+            last_check            INT DEFAULT NULL,
+            type                  TEXT NOT NULL,
+            notified_serial       BIGINT DEFAULT NULL,
+            account               VARCHAR(40) DEFAULT NULL,
+            options               TEXT DEFAULT NULL,
+            catalog               TEXT DEFAULT NULL,
+            CONSTRAINT c_lowercase_name CHECK (((name)::TEXT = LOWER((name)::TEXT)))
+            );
+            CREATE UNIQUE INDEX name_index ON domains(name);
+            CREATE INDEX catalog_idx ON domains(catalog);
+            CREATE TABLE records (
+            id                    BIGSERIAL PRIMARY KEY,
+            domain_id             INT DEFAULT NULL,
+            name                  VARCHAR(255) DEFAULT NULL,
+            type                  VARCHAR(10) DEFAULT NULL,
+            content               VARCHAR(65535) DEFAULT NULL,
+            ttl                   INT DEFAULT NULL,
+            prio                  INT DEFAULT NULL,
+            disabled              BOOL DEFAULT 'f',
+            ordername             VARCHAR(255),
+            auth                  BOOL DEFAULT 't',
+            CONSTRAINT domain_exists
+            FOREIGN KEY(domain_id) REFERENCES domains(id)
+            ON DELETE CASCADE,
+            CONSTRAINT c_lowercase_name CHECK (((name)::TEXT = LOWER((name)::TEXT)))
+            );
+            CREATE INDEX rec_name_index ON records(name);
+            CREATE INDEX nametype_index ON records(name,type);
+            CREATE INDEX domain_id ON records(domain_id);
+            CREATE TABLE supermasters (
+            ip                    INET NOT NULL,
+            nameserver            VARCHAR(255) NOT NULL,
+            account               VARCHAR(40) NOT NULL,
+            PRIMARY KEY(ip, nameserver)
+            );
+            CREATE TABLE comments (
+            id                    BIGSERIAL PRIMARY KEY,
+            domain_id             INT NOT NULL,
+            name                  VARCHAR(255) NOT NULL,
+            type                  VARCHAR(10) NOT NULL,
+            modified_at           INT NOT NULL,
+            account               VARCHAR(40) DEFAULT NULL,
+            comment               VARCHAR(65535) NOT NULL,
+            CONSTRAINT domain_exists
+            FOREIGN KEY(domain_id) REFERENCES domains(id)
+            ON DELETE CASCADE,
+            CONSTRAINT c_lowercase_name CHECK (((name)::TEXT = LOWER((name)::TEXT)))
+            );
+            CREATE INDEX comments_domain_id_idx ON comments (domain_id);
+            CREATE INDEX comments_name_type_idx ON comments (name, type);
+            CREATE INDEX comments_order_idx ON comments (domain_id, modified_at);
+            CREATE TABLE domainmetadata (
+            id                    BIGSERIAL PRIMARY KEY,
+            domain_id             INT REFERENCES domains(id) ON DELETE CASCADE,
+            kind                  VARCHAR(32),
+            content               TEXT
+            );
+            CREATE INDEX domainidmetaindex ON domainmetadata(domain_id);
+            CREATE TABLE cryptokeys (
+            id                    BIGSERIAL PRIMARY KEY,
+            domain_id             INT REFERENCES domains(id) ON DELETE CASCADE,
+            flags                 INT NOT NULL,
+            active                BOOL,
+            published             BOOL DEFAULT TRUE,
+            content               TEXT
+            );
+            CREATE INDEX domainidindex ON cryptokeys(domain_id);
+            CREATE TABLE tsigkeys (
+            id                    BIGSERIAL PRIMARY KEY,
+            name                  VARCHAR(255),
+            algorithm             VARCHAR(50),
+            secret                VARCHAR(255),
+            CONSTRAINT c_lowercase_name CHECK (((name)::TEXT = LOWER((name)::TEXT)))
+            );
+            CREATE UNIQUE INDEX namealgoindex ON tsigkeys(name, algorithm);
+            CREATE SEQUENCE domain_id MAXVALUE 2147483648;
+            CREATE SEQUENCE record_id MAXVALUE 2147483648;
+            CREATE SEQUENCE comment_id MAXVALUE 2147483648;
+            CREATE SEQUENCE meta_id MAXVALUE 2147483648;
+            CREATE SEQUENCE key_id MAXVALUE 2147483648;
+            CREATE SEQUENCE tsig_id MAXVALUE 2147483648;"
   netcrave-image:
     image: netcrave
     build:
@@ -415,6 +548,20 @@ services:
         ipv6_address: ${ACME_IP6}
     volumes:
         - acme_ssl:/etc/ssl
+  powerdns:
+    depends_on:
+        netcrave-image:
+            condition: service_completed_successfully        
+    image: netcrave:powerdns
+    build:
+      context: .
+      dockerfile: ./docker/powerdns/Dockerfile
+    networks:
+      netcrave-docker-driver-powerdns:
+        ipv4_address: ${POWERDNS_IP4}
+        ipv6_address: ${POWERDNS_IP6}
+    volumes:
+        - powerdns_ssl:/etc/ssl
   frr-netcrave:
     depends_on:
         netcrave-image:
@@ -515,7 +662,12 @@ networks:
       config:
         - subnet: ${ACME_NET_4}
         - subnet: ${ACME_NET_6}
-
+  netcrave-docker-driver-powerdns:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: ${POWERDNS_NET_4}
+        - subnet: ${POWERDNS_NET_6}
 volumes:
     ca_easyrsa:
     certificatemgr_ssl:
@@ -533,3 +685,4 @@ volumes:
     haproxycfg_ssl:
     ipam_ssl:
     ifconfig_ssl:
+    powerdns_ssl:
