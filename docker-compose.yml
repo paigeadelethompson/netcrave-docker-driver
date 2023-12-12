@@ -244,7 +244,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/cockroach/Dockerfile
-    command: "start-single-node --certs-dir /cockroach/certs --listen-addr=:26257"
+    command: "start-single-node --certs-dir /cockroach/certs --listen-addr=${COCKROACH_IP4}:26257"
     networks:
       netcrave-docker-driver-cockroach:
         ipv4_address: ${COCKROACH_IP4}
