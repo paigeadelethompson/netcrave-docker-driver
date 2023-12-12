@@ -62,3 +62,56 @@ SQUID_IP4=192.0.0.30
 SQUID_IP6=2001:db8:aaaa:aabb:192:0:0:30
 SQUID_NET_4=192.0.0.28/30
 SQUID_NET_6=2001:db8:aaaa:aabb::/64
+
+ZEBRA=yes
+ZEBRA_OPTIONS=" -s 90000000 --daemon -A 127.0.0.1"
+
+BGPD=yes
+BGPD_OPTIONS="--daemon -A 127.0.0.1"
+
+OSPFD=no
+OSPFD_OPTIONS="--daemon -A 127.0.0.1"
+
+OSPF6D=yes
+OSPF6D_OPTIONS=" --daemon -A ::1"
+
+RIPD=no
+RIPD_OPTIONS="--daemon -A 127.0.0.1"
+
+RIPNGD=no
+RIPNGD_OPTIONS="--daemon -A ::1"
+
+ISISD=no
+ISISD_OPTIONS="--daemon -A 127.0.0.1"
+
+PIMD=no
+PIMD_OPTIONS="--daemon -A 127.0.0.1"
+
+LDPD=no
+LDPD_OPTIONS="--daemon -A 127.0.0.1"
+
+NHRPD=no
+NHRPD_OPTIONS="--daemon -A 127.0.0.1"
+
+EIGRPD=no
+EIGRPD_OPTIONS="--daemon -A 127.0.0.1"
+
+BABELD=no
+BABELD_OPTIONS="--daemon -A 127.0.0.1"
+
+SHARPD=no
+SHARPD_OPTIONS="--daemon -A 127.0.0.1"
+
+STATICD=yes
+STATICD_OPTIONS="--daemon -A 127.0.0.1"
+
+PBRD=no
+PBRD_OPTIONS="--daemon -A 127.0.0.1"
+
+BFDD=no
+BFDD_OPTIONS="--daemon -A 127.0.0.1"
+
+FABRICD=no
+FABRICD_OPTIONS="--daemon -A 127.0.0.1"
+
+VTYSH_ENABLE=yes

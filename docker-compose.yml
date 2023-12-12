@@ -212,9 +212,9 @@ services:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
   cockroach:
-    depends_on:
-        cockroach-copy-certs:
-            condition: service_completed_successfully        
+    # depends_on:
+    #     cockroach-copy-certs:
+    #         condition: service_completed_successfully        
     image: netcrave:cockroach
     build:
       context: .
@@ -424,9 +424,10 @@ services:
       context: .
       dockerfile: ./docker/frr/Dockerfile
       args:
-        TEMPLATE_ROOT: ./docker/haproxy/templates
+        TEMPLATE_ROOT: ./docker/frr/templates
     network_mode: host
     privileged: true
+    ipc: host
   frr-docker:
     depends_on:
         netcrave-image:
@@ -439,6 +440,7 @@ services:
         TEMPLATE_ROOT: ./docker/haproxy/templates
     network_mode: host
     privileged: true
+    ipc: host
     
 networks:
   netcrave-docker-driver-ipam:
