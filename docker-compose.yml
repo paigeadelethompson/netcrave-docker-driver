@@ -236,7 +236,6 @@ services:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
         - powerdns_ssl:/powerdns
-
   cockroach:
     depends_on:
         cockroach-copy-certs:        
@@ -556,6 +555,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/powerdns/Dockerfile
+      args:
+        TEMPLATE_ROOT: ./docker/powerdns/templates
     networks:
       netcrave-docker-driver-powerdns:
         ipv4_address: ${POWERDNS_IP4}

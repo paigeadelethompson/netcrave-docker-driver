@@ -59,7 +59,9 @@
 # launch=
 launch=
 launch=gpgsql
-gpgsql-host=2001:db8:aaaa:aabc:192:0:0:34
+# XXX FIXME 2001:db8:aaaa:aabc:192:0:0:34
+gpgsql-host=192.0.0.34
+gpgsql-port=25257
 gpgsql-user=powerdns
 gpgsql-dbname=powerdns
 gpgsql-extra-connection-parameters=sslmode=verify-full sslrootcert=/etc/ssl/certs/ca.crt sslcert=/etc/ssl/client.powerdns.crt sslkey=/etc/ssl/client.powerdns.key
