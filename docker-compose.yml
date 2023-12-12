@@ -236,6 +236,7 @@ services:
         - crdb:/cockroach/cockroach-data
         - crdb_ssl:/cockroach/certs
         - powerdns_ssl:/powerdns
+
   cockroach:
     depends_on:
         cockroach-copy-certs:        
@@ -244,7 +245,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/cockroach/Dockerfile
-    command: "start-single-node --certs-dir /cockroach/certs --listen-addr=${COCKROACH_IP4}:26257"
+    command: "start-single-node --certs-dir /cockroach/certs --listen-addr=:26257 --sql-addr=:5432"
     networks:
       netcrave-docker-driver-cockroach:
         ipv4_address: ${COCKROACH_IP4}
@@ -264,7 +265,7 @@ services:
       context: .
       dockerfile: ./docker/cockroach/Dockerfile
     command: |
-            sql --certs-dir /cockroach/certs --host=${COCKROACH_IP4} -e "
+            sql --certs-dir /cockroach/certs --host=${COCKROACH_IP4}:5432 -e "
             CREATE USER ipam WITH PASSWORD NULL;
             CREATE USER ifconfig WITH PASSWORD NULL;
             CREATE USER powerdns WITH PASSWORD NULL;
