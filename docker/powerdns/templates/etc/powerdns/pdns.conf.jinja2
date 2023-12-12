@@ -60,11 +60,10 @@
 launch=
 launch=gpgsql
 # XXX FIXME 2001:db8:aaaa:aabc:192:0:0:34
-gpgsql-host=192.0.0.34
-gpgsql-port=5432
+gpgsql-host=2001:db8:aaaa:aabc:192:0:0:34
 gpgsql-user=powerdns
 gpgsql-dbname=powerdns
-gpgsql-extra-connection-parameters=sslmode=verify-full sslrootcert=/etc/ssl/certs/ca.crt sslcert=/etc/ssl/client.powerdns.crt sslkey=/etc/ssl/client.powerdns.key
+gpgsql-extra-connection-parameters=sslmode=verify-full sslrootcert=/etc/ssl/crdb.ca.crt sslcert=/etc/ssl/client.powerdns.crt sslkey=/etc/ssl/client.powerdns.key
 gpgsql-get-order-first-query=select ordername from records where domain_id = $1 and disabled = false and ordername is not null order by 1 asc limit 1
 gpgsql-get-order-before-query=select ordername, name from records where ordername <= $1 and domain_id = $2 and disabled = false and ordername is not null order by 1 desc limit 1
 gpgsql-get-order-after-query=select ordername from records where ordername > $1 and domain_id = $2 and disabled = false and ordername is not null order by 1 asc limit 1
@@ -77,7 +76,7 @@ gpgsql-get-order-last-query=select ordername, name from records where ordername 
 # log-dns-queries=no
 # log-timestamp=yes
 # logging-facility=
-loglevel=4
+loglevel=6
 # lua-axfr-script=
 # lua-dnsupdate-policy-script=
 # lua-health-checks-expire-delay=3600

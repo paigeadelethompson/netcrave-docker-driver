@@ -269,12 +269,13 @@ services:
             CREATE USER ipam WITH PASSWORD NULL;
             CREATE USER ifconfig WITH PASSWORD NULL;
             CREATE USER powerdns WITH PASSWORD NULL;
+            GRANT ALL PRIVILEGES ON DATABASE ipam to ipam;
+            GRANT ALL PRIVILEGES ON DATABASE ifconfig to ifconfig;
+            GRANT ALL PRIVILEGES ON DATABASE powerdns to powerdns;
             CREATE DATABASE IF NOT EXISTS ipam;
             CREATE DATABASE IF NOT EXISTS ifconfig;
             CREATE DATABASE IF NOT EXISTS powerdns;
-            GRANT ALL ON DATABASE ipam to ipam;
-            GRANT ALL ON DATABASE ifconfig to ifconfig;
-            GRANT ALL ON DATABASE powerdns to powerdns;
+            SET DATABASE = powerdns;
             CREATE TABLE domains (
             id                    BIGSERIAL PRIMARY KEY,
             name                  VARCHAR(255) NOT NULL,
@@ -359,7 +360,8 @@ services:
             CREATE SEQUENCE comment_id MAXVALUE 2147483648;
             CREATE SEQUENCE meta_id MAXVALUE 2147483648;
             CREATE SEQUENCE key_id MAXVALUE 2147483648;
-            CREATE SEQUENCE tsig_id MAXVALUE 2147483648;"
+            CREATE SEQUENCE tsig_id MAXVALUE 2147483648;
+            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO powerdns;"
   netcrave-image:
     image: netcrave
     build:
@@ -376,9 +378,6 @@ services:
       context: .
       dockerfile: ./docker/netcrave-docker/Dockerfile
   ipam:
-    depends_on:
-        netcrave-docker-image:        
-            condition: service_completed_successfully
     image: netcrave:ipam
     build:
       context: .
@@ -393,9 +392,6 @@ services:
       - /run/netcrave/docker/ifconfig
       - ipam_ssl:/etc/ssl
   ifconfig:
-    depends_on:
-        netcrave-docker-image:
-            condition: service_completed_successfully        
     image: netcrave:ifconfig
     build:
       context: .
@@ -410,9 +406,6 @@ services:
       - /run/netcrave/docker/ifconfig
       - ifconfig_ssl:/etc/ssl
   haproxycfg:
-    depends_on:
-        netcrave-docker-image:
-            condition: service_completed_successfully        
     image: netcrave:haproxycfg
     build:
       context: .
@@ -425,9 +418,6 @@ services:
         - haproxycfg_ssl:/etc/ssl
         - /srv/_netcrave/haproxy:/haproxy
   certificatemgr:
-    depends_on:
-        netcrave-docker-image:
-            condition: service_completed_successfully        
     image: netcrave:certificatemgr
     build:
       context: .
@@ -441,9 +431,6 @@ services:
     volumes: 
         - certificatemgr_ssl:/etc/ssl
   dnsd:
-    depends_on:
-        netcrave-docker-image:
-            condition: service_completed_successfully        
     image: netcrave:dnsd
     build:
       context: .
@@ -455,9 +442,6 @@ services:
     volumes:
         - dnsd_ssl:/etc/ssl
   icap:
-    depends_on:
-        netcrave-docker-image:
-            condition: service_completed_successfully        
     image: netcrave:icap
     build:
       context: .
@@ -469,9 +453,6 @@ services:
     volumes:
         - icap_ssl:/etc/ssl
   haproxy:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:haproxy
     build:
       context: .
@@ -486,9 +467,6 @@ services:
         - haproxy_ssl:/etc/ssl
         - /srv/_netcrave/haproxy/:/ctl_sock
   squid:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:squid
     build:
       context: .
@@ -502,9 +480,6 @@ services:
     volumes: 
         - squid_ssl:/etc/ssl
   fluentd:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:fluentd
     build:
       context: .
@@ -518,9 +493,6 @@ services:
     volumes:
         - fluent_ssl:/etc/ssl
   davfs:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:davfs
     build:
       context: .
@@ -532,9 +504,6 @@ services:
     volumes:
         - davfs_ssl:/etc/ssl
   acme:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:acme
     build:
       context: .
@@ -549,9 +518,6 @@ services:
     volumes:
         - acme_ssl:/etc/ssl
   powerdns:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:powerdns
     build:
       context: .
@@ -565,9 +531,6 @@ services:
     volumes:
         - powerdns_ssl:/etc/ssl
   frr-netcrave:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:frr
     build:
       context: .
@@ -578,9 +541,6 @@ services:
     privileged: true
     ipc: host
   frr-docker:
-    depends_on:
-        netcrave-image:
-            condition: service_completed_successfully        
     image: netcrave:frr
     build:
       context: .
