@@ -6,7 +6,7 @@ def get():
 def get_default():
    return {
        'bip': '10.0.0.1/16', 
-       'containerd': '/run/containerd/containerd.sock', 
+       'containerd': '/run/_netcrave/containerd.sock', 
        'data-root': '/srv/_netcrave/data', 
        'default-address-pools': [{'base': '10.1.0.0/16', 'size': 29}], 
        'default-shm-size': '64K', 
