@@ -19,7 +19,10 @@ class installer():
                 "x86_64": "https://github.com/kata-containers/kata-containers/releases/download/3.2.0/kata-static-3.2.0-amd64.tar.xz",
                 "map": lambda archive: self._tarfile_mapper(archive, lambda path: (path.replace(
                     "./opt/kata", 
-                    "/opt/netcrave")))
+                    "/opt/netcrave")),
+                lambda path: (len([index for index in (
+                        "versions.yaml",
+                        "VERSION") if path.endswith(index)])) > 0)
             },
             {
                 "x86_64": "https://github.com/opencontainers/runc/releases/download/v1.1.10/runc.amd64",
@@ -67,9 +70,35 @@ class installer():
                         ".debug",
                         ".yaml",
                         ".json") if path.endswith(index)])) > 0))
+            },
+            {
+                "desc": "https://cri-o.github.io/cri-o/",
+                "x86_64": "https://storage.googleapis.com/k8s-conform-cri-o/artifacts/cri-o.amd64.52126218773e74abb6d3b92f431300a217da5ed8.tar.gz",
+                "arm64": "https://storage.googleapis.com/k8s-conform-cri-o/artifacts/cri-o.arm64.52126218773e74abb6d3b92f431300a217da5ed8.tar.gz",
+                "map": lambda archive: self._tarfile_mapper(archive, lambda path: (
+                    "/opt/netcrave/{path}".format(path = "/".join(path.split("/")[1::]))),
+                    lambda path: (len([index for index in (
+                        "etc",
+                        "crictl.yaml",
+                        "crio.conf",
+                        "crio-umount.conf",
+                        "README.md",
+                        "contrib",
+                        "crio.service",
+                        "crio.service",
+                        "policy.json",
+                        "10-crio-bridge.conf",
+                        "Makefile") if path.endswith(index)])) > 0)
+                    
             }]
         
     def install_all(self):
+        print("installing container runtimes")
+        print("""
+            note: compressed archive extraction is one problem that python isn't any
+            good at solving. Please give this a few moments to finish, it won't take
+            too long.
+            """)
         for index in self._packages:
             if index.get("dst") != None and not Path(index.get("dst")).parent.exists():
                 Path.mkdir(Path(index.get("dst")).parent, parents = True, exist_ok = True)
@@ -85,11 +114,26 @@ class installer():
             if index.get("map") != None:
                 file_map = index.get("map")(dl)
                 tar = tarfile.open(dl)
-                for member in tar.getmembers():
+                for member in tar.getnames():
                     for mapped in file_map:
-                        if mapped.get("src") == member.name:                            
-                            tar.extract(member, mapped.get("dst"))
-                            print("extracted file {filename}".format(filename = mapped.get("dst")))
+                        if mapped.get("src") == member:                            
+                            file = tar.getmember(member)
+                            if not file.isdir():
+                                with open(mapped.get("dst"), "wb") as out:
+                                    out.write(tar.extractfile(member).read())
+                                    print("extracted file {filename}".format(filename = mapped.get("dst")))
+                                with open(mapped.get("dst"), "rb") as check:                                                                
+                                    header = check.read(2)
+                                    if (
+                                        mapped.get("dst").startswith("/opt/netcrave/bin") 
+                                        or mapped.get("dst").startswith("/opt/netcrave/libexec")) and (
+                                            header == bytes([0x7f, 0x45]) 
+                                            or header == bytes([0x23, 0x21])):
+                                        print("set executable {filename}".format(filename = mapped.get("dst")))
+                                        Path(mapped.get("dst")).chmod(0o770)
+                            else:
+                                Path.mkdir(Path(mapped.get("dst")), parents = True, exist_ok = True)
+                                print("created directory {direc}".format(direc = mapped.get("dst")))
                             
             if index.get("dst") == None:
                 print("deleting {tempfile}".format(tempfile = dl))
