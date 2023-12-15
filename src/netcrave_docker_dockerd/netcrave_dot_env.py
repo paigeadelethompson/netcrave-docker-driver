@@ -1,3 +1,5 @@
+# IAmPaigeAT (paige@paige.bio) 2023
+
 from dotenv import load_dotenv, dotenv_values
 from collections import OrderedDict
 

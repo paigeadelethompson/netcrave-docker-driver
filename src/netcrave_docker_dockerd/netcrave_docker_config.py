@@ -1,3 +1,5 @@
+# IAmPaigeAT (paige@paige.bio) 2023
+
 import json
 
 def get():

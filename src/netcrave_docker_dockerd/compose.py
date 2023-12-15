@@ -1,3 +1,5 @@
+# IAmPaigeAT (paige@paige.bio) 2023
+
 from compose.cli.command import get_project
 from compose.config import load as compose_config_load
 from compose.config.config import ConfigDetails, ConfigFile, Environment
@@ -65,19 +67,18 @@ def get_compose():
         
         with open("/etc/netcrave/netcrave-compose.yml", "+wb") as new_file:
             new_file.write(bytes(yaml.dump(cfg.config), 'utf-8'))
-    except NotImplementedError as ex:
-        print(ex)
-        # raise(Exception(
-        #     """
-        #     This could be bad, please report a bug if you cannot troubleshoot this error:
-        #     If you know what is causing the issue, then you may be able to work around by 
-        #     supplying a netcrave-compose.yml of your own in /etc/netcrave/
-        #     {exception}
-        #     """.format(ex)))
-    
-#     return get_project(
-#         "/etc/netcrave", 
-#         interpolate = True,
-#         environment = Environment(
-#             get_environment()))
-#         
+        
+        return get_project(
+        "/etc/netcrave", 
+        interpolate = True,
+        environment = Environment(
+            get_environment()))
+        
+    except Exception as ex:
+        raise(Exception(
+            """
+            This could be bad, please report a bug if you cannot troubleshoot this error:
+            If you know what is causing the issue, then you may be able to work around by 
+            supplying a netcrave-compose.yml of your own in /etc/netcrave/
+            {exception}
+            """.format(ex)))

@@ -1,3 +1,5 @@
+# IAmPaigeAT (paige@paige.bio) 2023
+
 from pathlib import Path
 import subprocess
 from threading import Thread 
