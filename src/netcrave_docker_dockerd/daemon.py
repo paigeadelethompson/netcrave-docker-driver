@@ -7,17 +7,20 @@ class service():
     def __init__(self):
         pass
     
+    def _run_dockerd(self):
+        pass
+    
     def start(self):
         try:
-            self.composer, self.ca, self.ndb = setup_environment()
-            #Thread(target = lambda: subprocess.run
+            self._composer, self._ca, self._ndb = setup_environment()
+            self._dockerd_thread  = Thread(target = lambda: self._run_dockerd())
         except Exception as ex:
             raise ex
     
     def create_service(self):
         systemd_script = """
             [Unit]
-            Description="Netcrave internal Docker daemon"
+            Description="Netcrave Container Service"
             
             StartLimitIntervalSec=60000
 
@@ -42,7 +45,3 @@ class service():
                 raise Exception("failed to reload systemd")
         else:
             raise Exception("service already installed")
-            
-                
-            
-    

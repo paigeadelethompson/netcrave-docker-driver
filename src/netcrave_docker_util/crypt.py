@@ -43,8 +43,7 @@ class ez_rsa():
     def get_netcrave_certificate(self):
         key = serialization.load_pem_private_key(
             open("/etc/netcrave/ssl/_netcrave.key").read(), 
-            password=None, 
-            backend=default_backend())
+            password=None)
 
         cert = x509.load_pem_x509_certificate(
             open("/etc/netcrave/ssl/_netcrave.pem").read(), 
@@ -59,13 +58,13 @@ class ez_rsa():
         if not (Path("/etc/netcrave/ssl/_netcrave.key").exists()
                 and not Path("/etc/netcrave/ssl/_netcrave.pem").exists()):
                 return self.create_server_certificate(
-                    "netcrave.local"
-                    "US",
-                    "WA",
-                    "Seattle",
-                    "Netcrave Communications",
-                    "/etc/netcrave/ssl/_netcrave.key",
-                    "/etc/netcrave/ssl/_netcrave.pem")
+                    domain = "netcrave.local",
+                    country = "US",
+                    state = "WA",
+                    locality = "Seattle",
+                    org = "Netcrave Communications",
+                    key_file_dest = "/etc/netcrave/ssl/_netcrave.key",
+                    cert_file_dest = "/etc/netcrave/ssl/_netcrave.pem")
         else:
             return self
     
@@ -74,12 +73,12 @@ class ez_rsa():
             raise Exception("key and/or certificate already exist")
         
         root_key = serialization.load_pem_private_key(
-            open("/etc/netcrave/ssl/ca.key").read(), 
+            open("/etc/netcrave/ssl/ca.key", 'rb').read(), 
             password = None, 
             backend = default_backend())
 
         root_cert = x509.load_pem_x509_certificate(
-            open("/etc/netcrave/ssl/ca.pem").read(), 
+            open("/etc/netcrave/ssl/ca.pem", 'rb').read(), 
             default_backend())
 
         cert_key = rsa.generate_private_key(
@@ -109,8 +108,8 @@ class ez_rsa():
         with open(key_file_dest, "wb") as f:
             f.write(cert_key.private_bytes(
                 encoding = serialization.Encoding.PEM,
-                format = serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm = serialization.BestAvailableEncryption(b"_netcrave")))
+                format = serialization.PrivateFormat.PKCS8,
+                encryption_algorithm = serialization.NoEncryption()))
 
         with open(cert_file_dest, "wb") as f:
             f.write(cert.public_bytes(
@@ -149,9 +148,9 @@ class ez_rsa():
         
         with open("/etc/netcrave/ssl/ca.key", "wb") as f:
             f.write(private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm = serialization.BestAvailableEncryption(b"_netcrave")))
+                encoding = serialization.Encoding.PEM,
+                format = serialization.PrivateFormat.PKCS8,
+                encryption_algorithm = serialization.NoEncryption()))
 
         with open("/etc/netcrave/ssl/ca.pem", "wb") as f:
             f.write(certificate.public_bytes(

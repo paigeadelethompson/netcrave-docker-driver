@@ -124,8 +124,8 @@ class installer():
                                     print("extracted file {filename}".format(filename = mapped.get("dst")))
                                 with open(mapped.get("dst"), "rb") as check:                                                                
                                     header = check.read(2)
-                                    if (
-                                        mapped.get("dst").startswith("/opt/netcrave/bin") 
+                                    if (mapped.get("dst").startswith("/opt/netcrave/cni-plugins") 
+                                        or mapped.get("dst").startswith("/opt/netcrave/bin") 
                                         or mapped.get("dst").startswith("/opt/netcrave/libexec")) and (
                                             header == bytes([0x7f, 0x45]) 
                                             or header == bytes([0x23, 0x21])):

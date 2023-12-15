@@ -1,9 +1,8 @@
 from compose.cli.command import get_project
 from compose.config import load as compose_config_load
-from compose.config.config import ConfigDetails, ConfigFile
-from compose.config.config.yaml import dump
+from compose.config.config import ConfigDetails, ConfigFile, Environment
+from compose.config.config import yaml
 import importlib.resources as resources
-import toml
 import netcrave_compose
 from pathlib import Path
 import os
@@ -14,10 +13,13 @@ def compose_from_config_directory():
     return "/etc/netcrave/netcrave-compose.yml"
 
 def default_compose():
-    Path(resources.path(netcrave_compose, "docker-compose.yml"))
+    return next((
+        index for index in resources.files(
+            netcrave_compose).iterdir() 
+        if str(index).endswith("docker-compose.yml")))
 
-def netcrave_compose():
-    if Path.exists(compose_from_config_directory()):
+def get_compose():
+    if Path(compose_from_config_directory()).exists():
         return get_project(
             "/etc/netcrave", 
             interpolate = True,
@@ -25,7 +27,7 @@ def netcrave_compose():
                 get_environment()))
     try:
         templ_path = default_compose()
-        cfg = ConfigFile.from_filename("docker-compose.yml")
+        cfg = ConfigFile.from_filename(templ_path)
         for index in cfg.config.get("services"):
             if cfg.config.get("services"
                 ).get(index
@@ -62,19 +64,20 @@ def netcrave_compose():
             interpolate = True)
         
         with open("/etc/netcrave/netcrave-compose.yml", "+wb") as new_file:
-            new_file.write(dump(cfg.config))
-    except Exception as ex:
-        raise(Exception(
-            """
-            This could be bad, please report a bug if you cannot troubleshoot this error:
-            If you know what is causing the issue, then you may be able to work around by 
-            supplying a netcrave-compose.yml of your own in /etc/netcrave/
-            {exception}
-            """.format(ex)))
+            new_file.write(bytes(yaml.dump(cfg.config), 'utf-8'))
+    except NotImplementedError as ex:
+        print(ex)
+        # raise(Exception(
+        #     """
+        #     This could be bad, please report a bug if you cannot troubleshoot this error:
+        #     If you know what is causing the issue, then you may be able to work around by 
+        #     supplying a netcrave-compose.yml of your own in /etc/netcrave/
+        #     {exception}
+        #     """.format(ex)))
     
-    return get_project(
-        "/etc/netcrave", 
-        interpolate = True,
-        environment = Environment(
-            get_environment()))
-        
+#     return get_project(
+#         "/etc/netcrave", 
+#         interpolate = True,
+#         environment = Environment(
+#             get_environment()))
+#         

@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import netcrave_docker_dockerd.netcrave_docker_config as netcrave_docker_config
 import netcrave_docker_dockerd.netcrave_dot_env as netcrave_dotenv
-# from netcrave_docker_dockerd.compose import netcrave_compose
+from netcrave_docker_dockerd.compose import get_compose
 from netcrave_docker_util.crypt import ez_rsa
 import json
 from itertools import groupby
@@ -29,7 +29,6 @@ def create_policy_routing_rules_and_routes(
     current_red, 
     current_blue, 
     current_index, 
-    net_zip,
     ndb):
         nothing = lambda red, blue, index, ndb: []
         route6 = lambda i: IPv6Network(os.environ.get("{netname}_NET_6".format(netname = i)))
@@ -43,7 +42,7 @@ def create_policy_routing_rules_and_routes(
         yes_route6 = lambda i1, i2: (yes_net6(i1) and yes_net6(i2))
         yes_route4 = lambda i1, i2: (yes_net4(i1) and yes_net4(i2))
         
-        return (lambda red, blue, index, ndb, func: index != None 
+        return (lambda func, red, blue, index, ndb: index != None 
                 and func(red, blue, index, ndb) 
                 or ())({
                     'IPAM': nothing,
@@ -59,28 +58,38 @@ def create_policy_routing_rules_and_routes(
                     'ACME': nothing,
                     'POWERDNS': lambda red, blue, index, ndb: [
                         (yes_route6(index, "COCKROACH") 
-                         and ndb.routes.add(
-                            table = blue,
-                            dst = route6("COCKROACH"),
-                            gateway = gw6(index)) 
+                         and ndb.routes.create(
+                             target = "_netcrave",
+                             table = blue,
+                             dst = str(route6("COCKROACH")),
+                             gateway = str(gw6(index)))
                          or None),
                         (yes_route4(index, "COCKROACH") 
-                         and ndb.routes.add(
-                            table = blue,
-                            dst = route4("COCKROACH"),
-                            gateway = gw4(index)) 
+                         and ndb.routes.create(
+                             target = "_netcrave",
+                             table = blue,
+                             dst = str(route4("COCKROACH")),
+                             gateway = str(gw4(index)))
                          or None),
                         (yes_route6(index, "COCKROACH") 
-                         and ndb.rules.add(
-                            table = red,
-                            dst = route6(index),
-                            src = route6("COCKROACH")) 
+                         and ndb.rules.create(
+                             target = "_netcrave",
+                             table = red,
+                             action = 1,
+                             dst = str(route4(index).network_address),
+                             dst_len = route4(index).prefixlen,
+                             src = str(route4("COCKROACH").network_address),
+                             src_len = route4("COCKROACH").prefixlen)
                          or None),
                         (yes_route4(index, "COCKROACH") 
-                         and ndb.rules.add(
-                            table = red,
-                            dst = route4(index),
-                            src = route4("COCKROACH")) 
+                         and ndb.rules.create(
+                             target = "_netcrave",
+                             table = red,
+                             action = 1,
+                             dst = str(route6(index).network_address),
+                             dst_len = route6(index).prefixlen,
+                             src = str(route6("COCKROACH").network_address),
+                             src_len = route6("COCKROACH").prefixlen) 
                          or None)
                         ],
                     'SQUID': nothing }.get(current_index), 
@@ -141,12 +150,12 @@ def create_networks():
                 ifname = "vma{id}".format(id = red)) as veth:
                     if a4 != None:
                         veth.add_ip(
-                            address = str(a4), 
+                            address = str(next(n4.hosts())), 
                             prefixlen = n4.prefixlen, 
                             family = AF_INET)
                     if a6 != None:
                         veth.add_ip(
-                            address = str(a6), 
+                            address = str(next(n6.hosts())), 
                             prefixlen = n6.prefixlen, 
                             family = AF_INET6)
         
@@ -170,14 +179,19 @@ def create_networks():
                 ifname = "vsl{id}".format(id = blue)) as veth:
                     if a4 != None:
                         veth.add_ip(
-                            address = str(next(n4.hosts())), 
+                            address = str(a4), 
                             prefixlen = n4.prefixlen, 
                             family = AF_INET)
                     if a6 != None:
                         veth.add_ip(
-                            address = str(next(n6.hosts())),
+                            address = str(a6),
                             prefixlen = n6.prefixlen, 
                             family = AF_INET6)
+                        
+        for index in create_policy_routing_rules_and_routes(red, blue, index, ndb):
+            print(index)
+            index.commit()
+        
     return ndb
                             
 def create_configuration():
@@ -199,7 +213,8 @@ def create_configuration():
     return
 
 def setup_environment():
-    create_configuration()
-    # netcrave_compose()
-    ez_rsa().netcrave_certificate()
-    create_networks()
+    return (
+        create_configuration(),
+        get_compose(),
+        ez_rsa().netcrave_certificate(),
+        create_networks())
