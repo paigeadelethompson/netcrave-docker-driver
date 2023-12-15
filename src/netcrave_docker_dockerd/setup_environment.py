@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import netcrave_docker_dockerd.netcrave_docker_config as netcrave_docker_config
 import netcrave_docker_dockerd.netcrave_dot_env as netcrave_dotenv
+# from netcrave_docker_dockerd.compose import netcrave_compose
 from netcrave_docker_util.crypt import ez_rsa
 import json
 from itertools import groupby
@@ -13,65 +14,81 @@ import re
 from pyroute2 import NDB
 from pyroute2 import NetNS
 from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
+from socket import AF_INET, AF_INET6 
 
 def get_NDB():
-    return NDB(db_provider = 'sqlite3', db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3')
+    db = NDB(db_provider = 'sqlite3', db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3')
+    db.sources.add(netns = "_netcrave")
+    with db.interfaces.wait(
+        target = "_netcrave",
+        ifname = "lo") as loopback:
+        loopback.set(state = "up")
+    return db
 
 def create_policy_routing_rules_and_routes(
     current_red, 
     current_blue, 
     current_index, 
-    net_zip, 
-    ndb_routes, 
-    ndb_rules):
+    net_zip,
+    ndb):
+        nothing = lambda red, blue, index, ndb: []
         route6 = lambda i: IPv6Network(os.environ.get("{netname}_NET_6".format(netname = i)))
         route4 = lambda i: IPv4Network(os.environ.get("{netname}_NET_4".format(netname = i)))
         gw6 = lambda i: next(route6(i).hosts())
         gw4 = lambda i: next(route4(i).hosts())
-        yes_net6 = lambda i:  os.environ.get("{netname}_NET_6".format(netname = i)) != None and True or False
-        yes_net4 = lambda i:  os.environ.get("{netname}_NET_4".format(netname = i)) != None and True or False
+        yes_net6 = lambda i:  os.environ.get(
+            "{netname}_NET_6".format(netname = i)) != None and True or False
+        yes_net4 = lambda i:  os.environ.get(
+            "{netname}_NET_4".format(netname = i)) != None and True or False
         yes_route6 = lambda i1, i2: (yes_net6(i1) and yes_net6(i2))
         yes_route4 = lambda i1, i2: (yes_net4(i1) and yes_net4(i2))
         
-        return (lambda r, b, i, z, ro, ru, f: i != None and f(r, b, i, z, ro, ru) 
-            or ())({
-                'IPAM': lambda r, b, i, z, ro, ru: True,
-                'IFCONFIG': lambda r, b, i, z, ro, ru: True,
-                'ICAP': lambda r, b, i, z, ro, ru: True,
-                'HAPROXYCFG': lambda r, b, i, z, ro, ru: True,
-                'HAPROXY': lambda r, b, i, z, ro, ru: True,
-                'FLUENTD': lambda r, b, i, z, ro, ru: True,
-                'DNSD': lambda r, b, i, z, ro, ru: True,
-                'DAVFS': lambda r, b, i, z, ro, ru: True,
-                'COCKROACH': lambda r, b, i, z, ro, ru: True,
-                'CERTIFICATEMGR': lambda r, b, i, z, ro, ru: True,
-                'ACME': lambda r, b, i, z, ro, ru: True,
-                'POWERDNS': lambda r, b, i, z, ro, ru: [
-                    (yes_route6(i, "COCKROACH") and ro.add(
-                        table = b,
-                        dst = route6("COCKROACH"),
-                        gateway = gw6(i)) or None),
-                    (yes_route4(i, "COCKROACH") and ro.add(
-                        table = b,
-                        dst = route4("COCKROACH"),
-                        gateway = gw4(i)) or None),
-                    (yes_route6(i, "COCKROACH") and ru.add(
-                        table = r,
-                        dst = route6(i),
-                        src = route6("COCKROACH")) or None),
-                    (yes_route4(i, "COCKROACH") and ru.add(
-                        table = r,
-                        dst = route4(i),
-                        src = route4("COCKROACH")) or None)
-                    ],
-                'SQUID': lambda r, b, i, z, ro, ru: True }.get(current_index), 
-            current_red, 
-            current_blue, 
-            current_index, 
-            net_zip, 
-            ndb_routes, 
-            ndb_rules)
-    
+        return (lambda red, blue, index, ndb, func: index != None 
+                and func(red, blue, index, ndb) 
+                or ())({
+                    'IPAM': nothing,
+                    'IFCONFIG': nothing,
+                    'ICAP': nothing,
+                    'HAPROXYCFG': nothing,
+                    'HAPROXY': nothing,
+                    'FLUENTD': nothing,
+                    'DNSD': nothing,
+                    'DAVFS': nothing,
+                    'COCKROACH': nothing,
+                    'CERTIFICATEMGR': nothing,
+                    'ACME': nothing,
+                    'POWERDNS': lambda red, blue, index, ndb: [
+                        (yes_route6(index, "COCKROACH") 
+                         and ndb.routes.add(
+                            table = blue,
+                            dst = route6("COCKROACH"),
+                            gateway = gw6(index)) 
+                         or None),
+                        (yes_route4(index, "COCKROACH") 
+                         and ndb.routes.add(
+                            table = blue,
+                            dst = route4("COCKROACH"),
+                            gateway = gw4(index)) 
+                         or None),
+                        (yes_route6(index, "COCKROACH") 
+                         and ndb.rules.add(
+                            table = red,
+                            dst = route6(index),
+                            src = route6("COCKROACH")) 
+                         or None),
+                        (yes_route4(index, "COCKROACH") 
+                         and ndb.rules.add(
+                            table = red,
+                            dst = route4(index),
+                            src = route4("COCKROACH")) 
+                         or None)
+                        ],
+                    'SQUID': nothing }.get(current_index), 
+                current_red, 
+                current_blue, 
+                current_index,
+                ndb)
+                
 def create_networks():
     config = netcrave_docker_config.get()
     dotenv = netcrave_dotenv.get()
@@ -83,8 +100,6 @@ def create_networks():
             or index.endswith("_NET_6")], 
         key = lambda k: re.match("^[^_]+(?=_)", k).group())]
     
-    ndb.sources.add(netns = "_netcrave")
-    
     net_zip = zip(
         [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 == 0],
         [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 != 0],
@@ -92,13 +107,17 @@ def create_networks():
     
     for red, blue, index in net_zip:
         n4 = (dotenv.get("{index}_NET_4".format(index = index)) != None 
-                and IPv4Network(dotenv.get("{index}_NET_4".format(index = index))) or None)
+                and IPv4Network(dotenv.get("{index}_NET_4".format(index = index))) 
+                or None)
         n6 = (dotenv.get("{index}_NET_6".format(index = index)) != None 
-                and IPv6Network(dotenv.get("{index}_NET_6".format(index = index))) or None)
+                and IPv6Network(dotenv.get("{index}_NET_6".format(index = index)))
+                or None)
         a4 = (dotenv.get("{index}_IP4".format(index = index)) != None 
-                and IPv4Address(dotenv.get("{index}_IP4".format(index = index))) or None)
+                and IPv4Address(dotenv.get("{index}_IP4".format(index = index))) 
+                or None)
         a6 = (dotenv.get("{index}_IP6".format(index = index)) != None 
-                and IPv6Address(dotenv.get("{index}_IP6".format(index = index))) or None)
+                and IPv6Address(dotenv.get("{index}_IP6".format(index = index))) 
+                or None)
         
         with ndb.interfaces.create(
             target = '_netcrave', 
@@ -111,13 +130,25 @@ def create_networks():
                     ifname = "vma{id}".format(id = red),
                     kind = 'veth',
                     state = "up",
-                    peer = { 'ifname': 'vsl{id}'.format(id = blue), "net_ns_fd": "_netcrave", "state": "up"}) as veth:
+                    peer = { 'ifname': 'vsl{id}'.format(id = blue), "net_ns_fd": "_netcrave" }) as veth:
                         vrf.add_port(veth)
-                        if a4 != None:
-                            veth.add_ip("{address}/{prefixlen}".format(address = str(a4), prefixlen = n4.prefixlen))
-                        if a6 != None:
-                            veth.add_ip("{address}/{prefixlen}".format(address = str(a6), prefixlen = n6.prefixlen))
-                            
+        
+        with ndb.interfaces.wait(
+            target = "_netcrave",
+            ifname = "red{id}".format(id = red)) as vrf:
+            with ndb.interfaces.get(
+                target = "_netcrave",
+                ifname = "vma{id}".format(id = red)) as veth:
+                    if a4 != None:
+                        veth.add_ip(
+                            address = str(a4), 
+                            prefixlen = n4.prefixlen, 
+                            family = AF_INET)
+                    if a6 != None:
+                        veth.add_ip(
+                            address = str(a6), 
+                            prefixlen = n6.prefixlen, 
+                            family = AF_INET6)
         
         with ndb.interfaces.create(
             target = '_netcrave', 
@@ -129,30 +160,46 @@ def create_networks():
                     target = '_netcrave', 
                     ifname = "vsl{id}".format(id = blue)) as peer:                
                         vrf.add_port(peer)
-                        if a4 != None:
-                            peer.add_ip("{address}/{prefixlen}".format(
-                                address = str(next(n4.hosts())), 
-                                prefixlen = n4.prefixlen))                
-                        if a6 != None:
-                            peer.add_ip("{address}/{prefixlen}".format(
-                                address = str(next(n6.hosts())), 
-                                prefixlen = n6.prefixlen))
-        return ndb
+                        peer.set(state = "up")
+                        
+        with ndb.interfaces.wait(
+            target = "_netcrave",
+            ifname = "blue{id}".format(id = blue)) as vrf:
+            with ndb.interfaces.get(
+                target = "_netcrave",
+                ifname = "vsl{id}".format(id = blue)) as veth:
+                    if a4 != None:
+                        veth.add_ip(
+                            address = str(next(n4.hosts())), 
+                            prefixlen = n4.prefixlen, 
+                            family = AF_INET)
+                    if a6 != None:
+                        veth.add_ip(
+                            address = str(next(n6.hosts())),
+                            prefixlen = n6.prefixlen, 
+                            family = AF_INET6)
+    return ndb
                             
 def create_configuration():
-    Path("/etc/netcrave/ssl").mkdir(parents = True, exist_ok = False)
-    Path("/srv/netcrave/_netcrave/NDB").mkdir(parents = True, exist_ok = True)
-    
-    with open("/etc/netcrave/_netcrave.json", "w") as config:
-        config.write(json.dumps(netcrave_docker_config.get_default()))
-    
-    with open("/etc/netcrave/_netcrave.dotenv", "w") as config:
-        config.write("\n".join(["{env_key}={env_value}".format(
-            env_key = key, 
-            env_value = value) for key, value in netcrave_dotenv.get_default()]))
-    
-def setup_environment():
     if not Path("/etc/netcrave/ssl").exists():
-        create_configuration()
-        ez_rsa().create_default_ca()
+        Path("/etc/netcrave/ssl").mkdir(parents = True, exist_ok = False)
+    
+    if not Path("/srv/netcrave/_netcrave/NDB").exists():
+        Path("/srv/netcrave/_netcrave/NDB").mkdir(parents = True, exist_ok = False)
+    
+    if not Path("/etc/netcrave/_netcrave.json").exists():
+        with open("/etc/netcrave/_netcrave.json", "w") as config:
+            config.write(json.dumps(netcrave_docker_config.get_default()))
+    
+    if not Path("/etc/netcrave/_netcrave.dotenv").exists():
+        with open("/etc/netcrave/_netcrave.dotenv", "w") as config:
+            config.write("\n".join(["{env_key}={env_value}".format(
+                env_key = key, 
+                env_value = value) for key, value in netcrave_dotenv.get_default()]))
+    return
+
+def setup_environment():
+    create_configuration()
+    # netcrave_compose()
+    ez_rsa().netcrave_certificate()
     create_networks()

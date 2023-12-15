@@ -52,7 +52,10 @@ class ez_rsa():
         
         return key, cert
     
-    def create_netcrave_default_certificate(self):
+    def netcrave_certificate(self):
+        if not (Path("/etc/netcrave/ssl/ca.key").exists()
+                and not Path("/etc/netcrave/ssl/ca.pem").exists()):
+            self.create_default_ca()
         if not (Path("/etc/netcrave/ssl/_netcrave.key").exists()
                 and not Path("/etc/netcrave/ssl/_netcrave.pem").exists()):
                 return self.create_server_certificate(
@@ -64,7 +67,7 @@ class ez_rsa():
                     "/etc/netcrave/ssl/_netcrave.key",
                     "/etc/netcrave/ssl/_netcrave.pem")
         else:
-            raise Exception("can't overwrite existing server certificates")
+            return self
     
     def create_server_certificate(self, domain, country, state, locality, org, key_file_dest, cert_file_dest):
         if Path(key_file_dest).exists() or Path(cert_file_dest).exists():

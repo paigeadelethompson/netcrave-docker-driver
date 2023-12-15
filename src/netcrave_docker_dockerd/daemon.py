@@ -1,37 +1,48 @@
-from systemd_service import Service
+from pathlib import Path
+import subprocess
+from threading import Thread 
+from netcrave_docker_dockerd.setup_environment import setup_environment
 
-class service(Service):
-    def __init__(self, name, *args, **kwargs):
-        super(service, self).__init__(*args, **kwargs)
-        self.name = name
-        
-    def create_service(self, after=None):
-        if after:
-            after = f'After={after}'
-        else:
-            after = ''
-        systemd_script = f'''
-        [Unit]
-        Description="{self.name}"
-        {after}
-        StartLimitIntervalSec=5000
-        StartLimitBurst=50
-
-        [Service]
-        Type=simple
-        ExecStartPre=/usr/bin/env {self.name}-env
-        ExecStart=/usr/bin/env {self.name}-daemon
-        Restart=never
-
-        [Install]
-        WantedBy=multi-user.target
-        '''
-
-        self.stop()
-        self.remove()
-        
-        with open(f"/etc/systemd/system/{self.name}.service", 'w') as file:
-            file.write(systemd_script)
+class service():
+    def __init__(self):
+        pass
+    
+    def start(self):
+        try:
+            self.composer, self.ca, self.ndb = setup_environment()
+            #Thread(target = lambda: subprocess.run
+        except Exception as ex:
+            raise ex
+    
+    def create_service(self):
+        systemd_script = """
+            [Unit]
+            Description="Netcrave internal Docker daemon"
             
-        self.reload()
+            StartLimitIntervalSec=60000
 
+            [Service]
+            Type=simple
+            ExecStartPre=/usr/bin/env netcrave-dockerd-environment
+            ExecStart=/usr/bin/env netcrave-dockerd-daemon
+            Restart=never
+
+            [Install]
+            WantedBy=multi-user.target
+            """
+            
+        if not Path("/etc/systemd/system/netcrave-dockerd-daemon.service").exists():
+            with open("/etc/systemd/system/netcrave-dockerd-daemon.service", 'w') as file:
+                file.write(systemd_script)
+            
+            result = subprocess.run(["/usr/bin/env", "systemctl", "daemon-reload"])
+            
+            if result.returncode != 0:
+                Path("/etc/systemd/system/netcrave-dockerd-daemon.service").unlink()
+                raise Exception("failed to reload systemd")
+        else:
+            raise Exception("service already installed")
+            
+                
+            
+    
