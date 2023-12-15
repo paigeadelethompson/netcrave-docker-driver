@@ -53,8 +53,8 @@ class ez_rsa():
         return key, cert
     
     def create_netcrave_default_certificate(self):
-        if not (Path.exists("/etc/netcrave/ssl/_netcrave.key")
-                and not Path.exists("/etc/netcrave/ssl/_netcrave.pem")):
+        if not (Path("/etc/netcrave/ssl/_netcrave.key").exists()
+                and not Path("/etc/netcrave/ssl/_netcrave.pem").exists()):
                 return self.create_server_certificate(
                     "netcrave.local"
                     "US",
@@ -67,7 +67,7 @@ class ez_rsa():
             raise Exception("can't overwrite existing server certificates")
     
     def create_server_certificate(self, domain, country, state, locality, org, key_file_dest, cert_file_dest):
-        if Path.exists(key_file_dest) or Path.exists(cert_file_dest):
+        if Path(key_file_dest).exists() or Path(cert_file_dest).exists():
             raise Exception("key and/or certificate already exist")
         
         root_key = serialization.load_pem_private_key(
@@ -79,18 +79,17 @@ class ez_rsa():
             open("/etc/netcrave/ssl/ca.pem").read(), 
             default_backend())
 
-        # Now we want to generate a cert from that root
         cert_key = rsa.generate_private_key(
             public_exponent = 65537, 
             key_size = 2048, 
             backend = default_backend())
-            new_subject = x509.Name(
-                [
-                    x509.NameAttribute(NameOID.COUNTRY_NAME, country),
-                    x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state),
-                    x509.NameAttribute(NameOID.LOCALITY_NAME, locality),
-                    x509.NameAttribute(NameOID.ORGANIZATION_NAME, org),
-                ])
+        
+        new_subject = x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, country),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, locality),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, org)])
+        
         cert = (
             x509.CertificateBuilder()
             .subject_name(new_subject)
@@ -128,12 +127,10 @@ class ez_rsa():
         builder = builder.subject_name(x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME, u'Netcrave CA'),
             x509.NameAttribute(NameOID.ORGANIZATION_NAME, u'_netcrave'),
-            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, u'Netcrave internal CA'),
-        ]))
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, u'Netcrave internal CA')]))
         
         builder = builder.issuer_name(x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, u'netcrave'),
-        ]))
+            x509.NameAttribute(NameOID.COMMON_NAME, u'netcrave')]))
         
         builder = builder.not_valid_before(datetime.datetime(1950, 1, 1))
         builder = builder.not_valid_after(datetime.datetime.max)
@@ -141,24 +138,20 @@ class ez_rsa():
         builder = builder.public_key(public_key)
         
         builder = builder.add_extension(
-            x509.BasicConstraints(ca = True, path_length = None), critical = True,
-        )
+            x509.BasicConstraints(ca = True, path_length = None), critical = True)
         
         certificate = builder.sign(
             private_key = private_key, algorithm=hashes.SHA512(),
-            backend=default_backend()
-        )
+            backend=default_backend())
         
         with open("/etc/netcrave/ssl/ca.key", "wb") as f:
             f.write(private_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm = serialization.BestAvailableEncryption(b"_netcrave")
-            ))
+                encryption_algorithm = serialization.BestAvailableEncryption(b"_netcrave")))
 
         with open("/etc/netcrave/ssl/ca.pem", "wb") as f:
             f.write(certificate.public_bytes(
-                encoding=serialization.Encoding.PEM,
-            ))
+                encoding=serialization.Encoding.PEM))
             
         return self

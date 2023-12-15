@@ -7,7 +7,7 @@ def get():
     return dotenv_values("/etc/netcrave/_netcrave.dotenv")
     
 def get_default():
-    return OrderedDict([
+    return list(OrderedDict([
         ('DEBIAN_RELEASE', 'bookworm'),
         ('NUM_BACKENDS_SSL', '64'),
         ('NUM_BACKENDS', '64'),
@@ -97,4 +97,4 @@ def get_default():
         ('BFDD_OPTIONS', '--daemon -A 127.0.0.1'),
         ('FABRICD', 'no'),
         ('FABRICD_OPTIONS', '--daemon -A 127.0.0.1'),
-        ('VTYSH_ENABLE', 'yes')])
+        ('VTYSH_ENABLE', 'yes')]).items())

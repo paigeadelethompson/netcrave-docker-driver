@@ -43,6 +43,7 @@ systemd-service = "^1.8"
 wheel = "^0.42.0"
 prompt-toolkit = "^3.0.43"
 docker-compose = "^1.29.2"
+pyyaml = "3.10"
 
 [build-system]
 requires = ["poetry-core"]

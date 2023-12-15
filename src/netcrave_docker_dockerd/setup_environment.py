@@ -15,7 +15,7 @@ from pyroute2 import NetNS
 from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
 
 def get_NDB():
-    return NDB(db_provider = 'sqlite3', db_spec = '/srv/netcrave_netcrave/NDB/network.sqlite3')
+    return NDB(db_provider = 'sqlite3', db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3')
 
 def create_policy_routing_rules_and_routes(
     current_red, 
@@ -24,12 +24,12 @@ def create_policy_routing_rules_and_routes(
     net_zip, 
     ndb_routes, 
     ndb_rules):
-        route6 = lambda i: IPv6Network(os.environ.get("{netname}_NET_6".format(i)))
-        route4 = lambda i: IPv4Network(os.environ.get("{netname}_NET_4".format(i)))
+        route6 = lambda i: IPv6Network(os.environ.get("{netname}_NET_6".format(netname = i)))
+        route4 = lambda i: IPv4Network(os.environ.get("{netname}_NET_4".format(netname = i)))
         gw6 = lambda i: next(route6(i).hosts())
         gw4 = lambda i: next(route4(i).hosts())
-        yes_net6 = lambda i:  os.environ.get("{netname}_NET_6".format(i)) != None and True or False
-        yes_net4 = lambda i:  os.environ.get("{netname}_NET_4".format(i)) != None and True or False
+        yes_net6 = lambda i:  os.environ.get("{netname}_NET_6".format(netname = i)) != None and True or False
+        yes_net4 = lambda i:  os.environ.get("{netname}_NET_4".format(netname = i)) != None and True or False
         yes_route6 = lambda i1, i2: (yes_net6(i1) and yes_net6(i2))
         yes_route4 = lambda i1, i2: (yes_net4(i1) and yes_net4(i2))
         
@@ -75,7 +75,7 @@ def create_policy_routing_rules_and_routes(
 def create_networks():
     config = netcrave_docker_config.get()
     dotenv = netcrave_dotenv.get()
-    db = get_NDB()
+    ndb = get_NDB()
     
     distinct_networks = [index for index, _ in groupby([
             index for index in dotenv.keys() 
@@ -91,78 +91,68 @@ def create_networks():
         distinct_networks)
     
     for red, blue, index in net_zip:
-        n4 = (dotenv.get("{index}_NET_4".format(index)) != None 
-                and IPv4Network(dotenv.get("{index}_NET_4".format(index))) or None)
-        n6 = (dotenv.get("{index}_NET_6".format(index)) != None 
-                and IPv6Network(dotenv.get("{index}_NET_6".format(index))) or None)
-        a4 = (dotenv.get("{index}_IP4".format(index)) != None 
-                and IPv4Address(dotenv.get("{index}_IP4".format(index))) or None)
-        a6 = (dotenv.get("{index}_IP6".format(index)) != None 
-                and IPv6Address(dotenv.get("{index}_IP6".format(index))) or None)
-
+        n4 = (dotenv.get("{index}_NET_4".format(index = index)) != None 
+                and IPv4Network(dotenv.get("{index}_NET_4".format(index = index))) or None)
+        n6 = (dotenv.get("{index}_NET_6".format(index = index)) != None 
+                and IPv6Network(dotenv.get("{index}_NET_6".format(index = index))) or None)
+        a4 = (dotenv.get("{index}_IP4".format(index = index)) != None 
+                and IPv4Address(dotenv.get("{index}_IP4".format(index = index))) or None)
+        a6 = (dotenv.get("{index}_IP6".format(index = index)) != None 
+                and IPv6Address(dotenv.get("{index}_IP6".format(index = index))) or None)
+        
         with ndb.interfaces.create(
             target = '_netcrave', 
             kind = "vrf",
-            state = 'up',
             vrf_table = red,
-            ifname = "red{id}".format(red)) as vrf:
-                vrf.routes.add(
-                    dst = "default", 
-                    table = red, 
-                    metric = 4278198272, 
-                    unreachable = True)
+            state = "up",
+            ifname = "red{id}".format(id = red)) as vrf:
+                with ndb.interfaces.create(
+                    target = "_netcrave",
+                    ifname = "vma{id}".format(id = red),
+                    kind = 'veth',
+                    state = "up",
+                    peer = { 'ifname': 'vsl{id}'.format(id = blue), "net_ns_fd": "_netcrave", "state": "up"}) as veth:
+                        vrf.add_port(veth)
+                        if a4 != None:
+                            veth.add_ip("{address}/{prefixlen}".format(address = str(a4), prefixlen = n4.prefixlen))
+                        if a6 != None:
+                            veth.add_ip("{address}/{prefixlen}".format(address = str(a6), prefixlen = n6.prefixlen))
+                            
         
         with ndb.interfaces.create(
-            target = '_netcrave',
+            target = '_netcrave', 
             kind = "vrf",
-            state = 'up',
             vrf_table = blue,
-            ifname = "blue{id}".format(blue)) as vrf:
-                vrf.routes.add(
-                    dst = "default", 
-                    table = blue, 
-                    metric = 4278198272, 
-                    unreachable = True)
-        
-        with ndb.interfaces.create(
-            ifname = "vma{id}".format(red),
-            kind = 'veth',
-            peer = {
-                'ifname': 'vsl{id}'.format(blue),
-                'net_ns_fd': '_netcrave',
-                'vrf_table': blue
-            },
-            vrf_table = red,
-            net_ns_fd = "_netcrave",
-            state = 'up') as network:
-                if a4 != None:
-                    network.add_ip(str(a4), n4.prefixlen)
-                if a6 != None:
-                    network.add_ip(str(a6), n6.prefixlen)
-                    
-        with ndb.interfaces.wait(
-            target = '_netcrave', 
-            ifname = "ns0sl{id}".format(blue)) as peer:  # wait for the peer
-                peer.set(state = 'up')  # bring it up
-                if a4 != None:
-                    peer.add_ip(str(next(n4.hosts())), n4.prefixlen)
-                if a6 != None:
-                    peer.add_ip(str(next(n4.hosts())), n6.prefixlen)
-        
-        return ndb.commit()
+            state = "up",
+            ifname = "blue{id}".format(id = blue)) as vrf:
+                with ndb.interfaces.wait(
+                    target = '_netcrave', 
+                    ifname = "vsl{id}".format(id = blue)) as peer:                
+                        vrf.add_port(peer)
+                        if a4 != None:
+                            peer.add_ip("{address}/{prefixlen}".format(
+                                address = str(next(n4.hosts())), 
+                                prefixlen = n4.prefixlen))                
+                        if a6 != None:
+                            peer.add_ip("{address}/{prefixlen}".format(
+                                address = str(next(n6.hosts())), 
+                                prefixlen = n6.prefixlen))
+        return ndb
                             
 def create_configuration():
-    Path.mkdir("/etc/netcrave/ssl", parents = True, exists_ok = False)
-    Path.mkdir("/srv/netcrave/_netcrave/NDB", parents = True, exists_ok = True)
+    Path("/etc/netcrave/ssl").mkdir(parents = True, exist_ok = False)
+    Path("/srv/netcrave/_netcrave/NDB").mkdir(parents = True, exist_ok = True)
     
     with open("/etc/netcrave/_netcrave.json", "w") as config:
         config.write(json.dumps(netcrave_docker_config.get_default()))
     
     with open("/etc/netcrave/_netcrave.dotenv", "w") as config:
-        config.write("\n".join(["{key}={value}".join(key, value) for key, value in netcrave_dotenv.get_default()]))
+        config.write("\n".join(["{env_key}={env_value}".format(
+            env_key = key, 
+            env_value = value) for key, value in netcrave_dotenv.get_default()]))
     
 def setup_environment():
-    if not Path.exists("/etc/netcrave/ssl"):
+    if not Path("/etc/netcrave/ssl").exists():
         create_configuration()
         ez_rsa().create_default_ca()
     create_networks()
