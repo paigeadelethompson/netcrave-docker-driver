@@ -18,7 +18,7 @@ class installer():
         self._packages = [{
                 "x86_64": "https://github.com/kata-containers/kata-containers/releases/download/3.2.0/kata-static-3.2.0-amd64.tar.xz",
                 "map": lambda archive: self._tarfile_mapper(archive, lambda path: (path.replace(
-                    "/opt/kata", 
+                    "./opt/kata", 
                     "/opt/netcrave")))
             },
             {
@@ -92,6 +92,6 @@ class installer():
                             print("extracted file {filename}".format(filename = mapped.get("dst")))
                             
             if index.get("dst") == None:
-                print("deleting {tempfile}".format(tempfile = dl)
+                print("deleting {tempfile}".format(tempfile = dl))
                 Path(dl).unlink()
                             
