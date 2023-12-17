@@ -5,7 +5,7 @@ import subprocess
 import asyncio
 from threading import Thread
 from netcrave_docker_dockerd.setup_environment import setup_environment, setup_compose
-from netcrave_docker_util.cmd import cmd
+from netcrave_docker_util.cmd import cmd, cmd_async
 from netcrave_docker_util.lazy import swallow
 import logging 
 import signal 
@@ -13,7 +13,6 @@ import traceback
 from netcrave_docker_dockerd.driver import oci_network_driver
 import sys 
 from queue import Queue
-import concurrent.futures
 
 class service():
     def __init__(self):
@@ -24,12 +23,12 @@ class service():
     def _run_internal_driver(self):
         oci_network_driver()
         
-    def _run_dockerd(self):
-        cmd(["/opt/netcrave/bin/dockerd", "--config-file", "/etc/netcrave/_netcrave.json"])
-    
-    def _run_containerd(self):
-        cmd(["/opt/netcrave/bin/containerd", "--root", "/opt/netcrave", "--address", "/run/_netcrave/sock.containerd"])
-    
+    async def _run_dockerd(self):
+        await cmd_async("/opt/netcrave/bin/dockerd", "--config-file", "/etc/netcrave/_netcrave.json")
+        
+    async def _run_containerd(self):
+        await cmd_async("/opt/netcrave/bin/containerd", "--root", "/srv/_netcrave/containerd", "--address", "/run/_netcrave/sock.containerd")
+        
     async def _dockerd_post_start(self):        
         if len([index for index in self._proj.client.images() if len([
             index2 for index2 in index.get("RepoTags") if index2.startswith("netcrave")]) > 0]) == 0:
@@ -63,9 +62,9 @@ class service():
                 
     def cleanup(self):       
         self.log.critical("please wait: attempting to shutdown cleanly...")
-        swallow(lambda: cmd(["umount", "/mnt/_netcrave/docker-compose.yml"]))
-        swallow(lambda: cmd(["umount", "/mnt/_netcrave/.env"]))
-        swallow(lambda: cmd(["umount", "/mnt/_netcrave/docker"]))
+        swallow(lambda: cmd("umount", "/mnt/_netcrave/docker-compose.yml"))
+        swallow(lambda: cmd("umount", "/mnt/_netcrave/.env"))
+        swallow(lambda: cmd("umount", "/mnt/_netcrave/docker"))
         swallow(lambda: Path("/mnt/_netcrave/.env").unlink())
         swallow(lambda: Path("/mnt/_netcrave/docker-compose.yml").unlink())
         swallow(lambda: Path("/mnt/_netcrave/docker").rmdir())
@@ -80,15 +79,13 @@ class service():
             self.log.debug("starting daemon, debugging is enabled")
             sockets, self._ca, self._ndb = await setup_environment()
             self._dockerd_sock, self._containerd_sock = sockets
-            #self._dockerd_post_start()     
             
-#             executor = concurrent.futures.ThreadPoolExecutor(max_workers = 8)
-#             event_loop = asyncio.get_event_loop()
-#             for index in [asyncio.create_task(self._run_containerd()),
-#              asyncio.create_task(self._run_dockerd()),
-#             asyncio.create_task(self._run_internal_driver())]:
-#                 event_loop.run_in_executor(executor, index)
-#         
+            self._procs = asyncio.gather(
+                self._run_containerd(),
+                self._run_dockerd())
+            
+            await self._procs
+            
         except Exception as ex:
             self.log.critical("Caught non-recoverable error in early startup {ex} {stacktrace}".format(
                 ex = ex, 
@@ -117,7 +114,7 @@ class service():
             with open("/etc/systemd/system/netcrave-dockerd-daemon.service", 'w') as file:
                 file.write(systemd_script)
             
-            result = cmd(["/usr/bin/env", "systemctl", "daemon-reload"])
+            result = await cmd(["/usr/bin/env", "systemctl", "daemon-reload"])
             
             if result.returncode != 0:
                 Path("/etc/systemd/system/netcrave-dockerd-daemon.service").unlink()

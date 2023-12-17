@@ -1,29 +1,39 @@
 import io
-import subprocess
+import asyncio
 import threading
 import logging
+import asyncio.subprocess
+import subprocess
+
+log = logging.getLogger(__name__)
+
+class io_proxy():
+    def __init__(self, io, desc, *args, **kwargs):
+        self._io = io
+        self._desc = desc
+        super(self.__class__, self).__init__(*args, **kwargs)
+    def __call__(self, *args, **kwargs):
+        self._io.__call__(*args)
+    def fileno(self, *args, **kwargs):
+        return self._desc
 
 def cmd(*args, **kwargs):
-    logger = logging.getLogger(__name__)
-    check = False
-    def log_stream(pipe, logger):
-        # by default stderr will be a binary stream
-        # we wrap it into a text stream
-        pipe = io.TextIOWrapper(pipe, encoding='utf-8', newline='')
-        with pipe:
-            for line in pipe:
-                logger.info(line.rstrip('\n'))
-
-    with subprocess.Popen(
-            *args, bufsize=1, stderr=subprocess.PIPE, **kwargs) as proc:
-        logger_thread = threading.Thread(
-            target=log_stream, args=(proc.stderr, logger))
-        logger_thread.start()
-        proc.wait()
-        logger_thread.join()
-    if check is True:
-        if proc.returncode != 0:
-            raise subprocess.CalledProcessError(
-                proc.returncode, proc.args,
-                proc.stdout.read() if proc.stdout is not None else None)
-    return proc
+    out = io.StringIO()
+    proc = subprocess.Popen(
+        *args, 
+        stdout = io_proxy(io = out, desc = 1),
+        stderr = io_proxy(io = out, desc = 2))
+    for index in out:
+        log.debug("%s: %s", proc, line.decode().rstrip())
+    
+async def cmd_async(*args, **kwargs):
+    out = io.StringIO()
+    proc = await asyncio.subprocess.create_subprocess_exec(
+        *args, 
+        stdout = io_proxy(io = out, desc = 1),
+        stderr = io_proxy(io = out, desc = 1))
+    
+    for line in out:        
+        log.debug("%s: %s", proc, line.decode().rstrip())
+    
+    await proc.wait()

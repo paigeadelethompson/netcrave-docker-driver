@@ -51,7 +51,7 @@ module_logger.addHandler(console_handler)
 main_logger.addHandler(console_handler)
 
 def daemon():
-    asyncio.run(service().start())
+    asyncio.get_event_loop().run_until_complete(service().start())
     
 def install():
     service("netcrave-dockerd").create_service()

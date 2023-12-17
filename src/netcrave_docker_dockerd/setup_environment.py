@@ -225,12 +225,16 @@ async def create_configuration():
     Path("/run/_netcrave/sock.containerd").touch()
     containerd = socket(AF_UNIX, SOCK_STREAM)
     swallow(lambda: containerd.bind("/run/_netcrave/sock.containerd"))
-    
-    if not Path("/srv/netcrave/_netcrave/NDB").exists():
-        Path("/srv/netcrave/_netcrave/NDB").mkdir(parents = True, exist_ok = False)
 
     if not Path("/srv/_netcrave/").exists():
         Path("/srv/_netcrave").mkdir(parents = True, exist_ok = False)
+    
+    if not Path("/srv/netcrave/_netcrave/containerd").exists():
+        Path("/srv/netcrave/_netcrave/containerd").mkdir(parents = True, exist_ok = False)
+
+    
+    if not Path("/srv/netcrave/_netcrave/NDB").exists():
+        Path("/srv/netcrave/_netcrave/NDB").mkdir(parents = True, exist_ok = False)
         
     if not Path("/etc/netcrave/ssl").exists():
         Path("/etc/netcrave/ssl").mkdir(parents = True, exist_ok = False)
