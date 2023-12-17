@@ -4,7 +4,7 @@ RUN apt --option Dpkg::Options::="--force-confold" --no-install-recommends -y in
 
 WORKDIR /tmp
 
-ADD . /tmp
+RUN git clone https://github.com/paigeadelethompson/netcrave-docker-driver.git  /tmp
 
 RUN poetry build 
 

@@ -1,5 +1,4 @@
 # IAmPaigeAT (paige@paige.bio) 2023
-
 from pyroute2 import ndb
 from pyroute2.ndb import events
 from pyroute2.ndb.events import State
@@ -8,6 +7,8 @@ import os
 from pathlib import Path
 import netcrave_docker_dockerd.netcrave_docker_config as netcrave_docker_config
 import netcrave_docker_dockerd.netcrave_dot_env as netcrave_dotenv
+from netcrave_docker_util.lazy import swallow
+from netcrave_docker_util.exception import unknown
 from netcrave_docker_dockerd.compose import get_compose
 from netcrave_docker_util.crypt import ez_rsa
 import json
@@ -16,18 +17,22 @@ import re
 from pyroute2 import NDB
 from pyroute2 import NetNS
 from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
-from socket import AF_INET, AF_INET6 
+from socket import socket, AF_INET, AF_INET6, AF_UNIX, SOCK_STREAM
+from pwd import getpwnam  
+import subprocess
+import logging
+from netcrave_docker_util.cmd import cmd
 
-def get_NDB():
-    db = NDB(db_provider = 'sqlite3', db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3')
+log = logging.getLogger(__name__)
+
+async def get_NDB():
+    db = NDB(db_provider = 'sqlite3', db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3', rtnl_debug=True, log = "on")
     db.sources.add(netns = "_netcrave")
-    with db.interfaces.wait(
-        target = "_netcrave",
-        ifname = "lo") as loopback:
+    with db.interfaces.wait(target = "_netcrave",ifname = "lo") as loopback:
         loopback.set(state = "up")
     return db
 
-def create_policy_routing_rules_and_routes(
+async def create_policy_routing_rules_and_routes(
     current_red, 
     current_blue, 
     current_index, 
@@ -100,10 +105,10 @@ def create_policy_routing_rules_and_routes(
                 current_index,
                 ndb)
                 
-def create_networks():
+async def create_networks():
     config = netcrave_docker_config.get()
     dotenv = netcrave_dotenv.get()
-    ndb = get_NDB()
+    ndb = await get_NDB()
     
     distinct_networks = [index for index, _ in groupby([
             index for index in dotenv.keys() 
@@ -190,19 +195,46 @@ def create_networks():
                             prefixlen = n6.prefixlen, 
                             family = AF_INET6)
                         
-        for index in create_policy_routing_rules_and_routes(red, blue, index, ndb):
-            print(index)
+        for index in await create_policy_routing_rules_and_routes(red, blue, index, ndb):
             index.commit()
         
     return ndb
-                            
-def create_configuration():
-    if not Path("/etc/netcrave/ssl").exists():
-        Path("/etc/netcrave/ssl").mkdir(parents = True, exist_ok = False)
+                        
+            
+async def create_configuration():
+    if not Path("/run/_netcrave/").exists():
+        Path("/run/_netcrave").mkdir(parents = True, exist_ok = False)
+    
+    if not Path("/run/_netcrave/docker/plugins/").exists():
+        Path("/run/_netcrave/docker/plugins/").mkdir(parents = True, exist_ok = False)
+        
+    if not swallow(lambda: getpwnam("_netcrave")):
+        cmd(["/usr/bin/env", "groupadd", "_netcrave"])
+        
+    swallow(lambda: Path("/run/_netcrave/sock.dockerd").unlink())
+    Path("/run/_netcrave/sock.dockerd").touch()
+    dockerd = socket(AF_UNIX, SOCK_STREAM)
+    swallow(lambda: dockerd.bind("/run/_netcrave/sock.dockerd"))
+    
+    swallow(lambda: Path("/run/_netcrave/docker/plugins/netcfg").unlink())
+    Path("/run/_netcrave/docker/plugins/netcfg").touch()
+    dockerd = socket(AF_UNIX, SOCK_STREAM)
+    swallow(lambda: dockerd.bind("/run/_netcrave/docker/plugins/netcfg"))
+    
+    swallow(lambda: Path("/run/_netcrave/sock.containerd").unlink())
+    Path("/run/_netcrave/sock.containerd").touch()
+    containerd = socket(AF_UNIX, SOCK_STREAM)
+    swallow(lambda: containerd.bind("/run/_netcrave/sock.containerd"))
     
     if not Path("/srv/netcrave/_netcrave/NDB").exists():
         Path("/srv/netcrave/_netcrave/NDB").mkdir(parents = True, exist_ok = False)
-    
+
+    if not Path("/srv/_netcrave/").exists():
+        Path("/srv/_netcrave").mkdir(parents = True, exist_ok = False)
+        
+    if not Path("/etc/netcrave/ssl").exists():
+        Path("/etc/netcrave/ssl").mkdir(parents = True, exist_ok = False)
+
     if not Path("/etc/netcrave/_netcrave.json").exists():
         with open("/etc/netcrave/_netcrave.json", "w") as config:
             config.write(json.dumps(netcrave_docker_config.get_default()))
@@ -212,11 +244,13 @@ def create_configuration():
             config.write("\n".join(["{env_key}={env_value}".format(
                 env_key = key, 
                 env_value = value) for key, value in netcrave_dotenv.get_default()]))
-    return
+    return dockerd, containerd
 
-def setup_environment():
+async def setup_compose():
+    return get_compose()
+
+async def setup_environment():
     return (
-        create_configuration(),
-        get_compose(),
-        ez_rsa().netcrave_certificate(),
-        create_networks())
+        await create_configuration(),
+        swallow(lambda: ez_rsa().netcrave_certificate()),
+        await create_networks())

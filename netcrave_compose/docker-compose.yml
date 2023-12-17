@@ -238,9 +238,6 @@ services:
         - powerdns_ssl:/powerdns
 
   cockroach:
-    depends_on:
-        cockroach-copy-certs:        
-            condition: service_completed_successfully  
     image: netcrave:cockroach
     build:
       context: .
@@ -257,9 +254,6 @@ services:
     volumes:
         - crdb_ssl:/cockroach/certs
     network_mode: host
-    depends_on:
-        cockroach:        
-            condition: service_started  
     image: netcrave:cockroach
     build:
       context: .
@@ -370,9 +364,6 @@ services:
         DEBIAN_RELEASE: ${DEBIAN_RELEASE}
       dockerfile: ./docker/netcrave/Dockerfile
   netcrave-docker-image:
-    depends_on:
-        netcrave-image:        
-            condition: service_completed_successfully
     image: netcrave:docker
     build:
       context: .
@@ -553,78 +544,91 @@ services:
     
 networks:
   netcrave-docker-driver-ipam:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${IPAM_NET_4}
         - subnet: ${IPAM_NET_6}
   netcrave-docker-driver-ifconfig:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${IFCONFIG_NET_4}
         - subnet: ${IFCONFIG_NET_6}
   netcrave-docker-driver-haproxycfg:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${HAPROXYCFG_NET_4}
         - subnet: ${HAPROXYCFG_NET_6}
   netcrave-docker-driver-certificatemgr:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${CERTIFICATEMGR_NET_4}
         - subnet: ${CERTIFICATEMGR_NET_6}
   netcrave-docker-driver-dnsd:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${DNSD_NET_4}
         - subnet: ${DNSD_NET_6}
   netcrave-docker-driver-icap:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${ICAP_NET_4}
         - subnet: ${ICAP_NET_6}
   netcrave-docker-driver-haproxy:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${HAPROXY_NET_4}
         - subnet: ${HAPROXY_NET_6}
   netcrave-docker-driver-squid:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${SQUID_NET_4}
         - subnet: ${SQUID_NET_6}
   netcrave-docker-driver-cockroach:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${COCKROACH_NET_4}
         - subnet: ${COCKROACH_NET_6}
   netcrave-docker-driver-fluentd:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${FLUENTD_NET_4}
         - subnet: ${FLUENTD_NET_6}
   netcrave-docker-driver-davfs:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${DAVFS_NET_4}
         - subnet: ${DAVFS_NET_6}
   netcrave-docker-driver-acme:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:
         - subnet: ${ACME_NET_4}
         - subnet: ${ACME_NET_6}
   netcrave-docker-driver-powerdns:
+    driver: _netcrave
     enable_ipv6: true
     ipam:
       config:

@@ -1,10 +1,6 @@
-from netcrave_docker_dockerd.daemon import service
-
 import datetime
 import logging
 import os
-import asyncio
-
 
 # Configure logging.
 # `export DEBUG=1` to see debug output.
@@ -49,9 +45,3 @@ if os.path.isdir('logs'):
 
 module_logger.addHandler(console_handler)
 main_logger.addHandler(console_handler)
-
-def daemon():
-    asyncio.run(service().start())
-    
-def install():
-    service("netcrave-dockerd").create_service()

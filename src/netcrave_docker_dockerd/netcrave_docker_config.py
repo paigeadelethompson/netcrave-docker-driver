@@ -8,7 +8,7 @@ def get():
 def get_default():
    return {
        'bip': '10.0.0.1/16', 
-       'containerd': '/run/_netcrave/containerd.sock', 
+       'containerd': '/run/_netcrave/sock.containerd', 
        'data-root': '/srv/_netcrave/data', 
        'default-address-pools': [{'base': '10.1.0.0/16', 'size': 29}], 
        'default-shm-size': '64K', 
@@ -16,7 +16,7 @@ def get_default():
        'exec-root': '/srv/_netcrave/state', 
        'fixed-cidr-v6': 'fc00::/64', 
        'group': '_netcrave', 
-       'hosts': ['unix:///run/_netcrave/_sock'], 
+       'hosts': ['unix:///run/_netcrave/sock.docker'], 
        'ip-forward': True, 
        'ip-masq': False, 
        'iptables': False, 
