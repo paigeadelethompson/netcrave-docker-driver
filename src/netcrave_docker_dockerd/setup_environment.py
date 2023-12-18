@@ -10,7 +10,7 @@ import netcrave_docker_dockerd.netcrave_dot_env as netcrave_dotenv
 from netcrave_docker_util.lazy import swallow
 from netcrave_docker_util.exception import unknown
 from netcrave_docker_dockerd.compose import get_compose
-from netcrave_docker_util.crypt import ez_rsa
+from netcrave_docker_util.ca import ez_rsa
 import json
 from itertools import groupby
 import re
@@ -21,15 +21,18 @@ from socket import socket, AF_INET, AF_INET6, AF_UNIX, SOCK_STREAM
 from pwd import getpwnam  
 import subprocess
 import logging
-from netcrave_docker_util.cmd import cmd
-
-log = logging.getLogger(__name__)
+from netcrave_docker_util.cmd import cmd_async
 
 async def get_NDB():
-    db = NDB(db_provider = 'sqlite3', db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3', rtnl_debug=True, log = "on")
-    db.sources.add(netns = "_netcrave")
+    log = logging.getLogger(__name__)
+    db = NDB(
+        db_provider = 'sqlite3', 
+        db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3', 
+        rtnl_debug = os.environ.get("DEBUG") and True or False, 
+        log = "off")
+    log.debug(db.sources.add(netns = "_netcrave"))
     with db.interfaces.wait(target = "_netcrave",ifname = "lo") as loopback:
-        loopback.set(state = "up")
+        log.debug(loopback.set(state = "up"))
     return db
 
 async def create_policy_routing_rules_and_routes(
@@ -37,6 +40,7 @@ async def create_policy_routing_rules_and_routes(
     current_blue, 
     current_index, 
     ndb):
+        log = logging.getLogger(__name__)
         nothing = lambda red, blue, index, ndb: []
         route6 = lambda i: IPv6Network(os.environ.get("{netname}_NET_6".format(netname = i)))
         route4 = lambda i: IPv4Network(os.environ.get("{netname}_NET_4".format(netname = i)))
@@ -106,8 +110,11 @@ async def create_policy_routing_rules_and_routes(
                 ndb)
                 
 async def create_networks():
+    log = logging.getLogger(__name__)
     config = netcrave_docker_config.get()
+    log.debug(config)
     dotenv = netcrave_dotenv.get()
+    log.debug(dotenv)
     ndb = await get_NDB()
     
     distinct_networks = [index for index, _ in groupby([
@@ -120,6 +127,8 @@ async def create_networks():
         [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 == 0],
         [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 != 0],
         distinct_networks)
+    
+    log.debug(net_zip)
     
     for red, blue, index in net_zip:
         n4 = (dotenv.get("{index}_NET_4".format(index = index)) != None 
@@ -146,9 +155,11 @@ async def create_networks():
                     ifname = "vma{id}".format(id = red),
                     kind = 'veth',
                     state = "up",
-                    peer = { 'ifname': 'vsl{id}'.format(id = blue), "net_ns_fd": "_netcrave" }) as veth:
+                    peer = { 'ifname': 'vsl{id}'.format(id = blue), "net_ns_fd": "_netcrave" }) as veth:                        
                         vrf.add_port(veth)
-        
+                        log.debug("A Master interface in RED plane {}".format(veth))
+                        log.debug("A VRF in RED plane, master interface assigned {}".format(vrf))
+                        
         with ndb.interfaces.wait(
             target = "_netcrave",
             ifname = "red{id}".format(id = red)) as vrf:
@@ -165,6 +176,8 @@ async def create_networks():
                             address = str(next(n6.hosts())), 
                             prefixlen = n6.prefixlen, 
                             family = AF_INET6)
+                    log.debug("Assign addresses to a master interface in the RED plane".format(veth))
+                    log.debug("RED VRF should be unchanged, but required dependency to VETH address assignment".format(vrf))
         
         with ndb.interfaces.create(
             target = '_netcrave', 
@@ -177,6 +190,8 @@ async def create_networks():
                     ifname = "vsl{id}".format(id = blue)) as peer:                
                         vrf.add_port(peer)
                         peer.set(state = "up")
+                        log.debug("A slave interface in BLUE plane {}".format(peer))
+                        log.debug("A VRF in BLUE plane, slave interface assigned {}".format(vrf))
                         
         with ndb.interfaces.wait(
             target = "_netcrave",
@@ -194,13 +209,13 @@ async def create_networks():
                             address = str(a6),
                             prefixlen = n6.prefixlen, 
                             family = AF_INET6)
-                        
+                    log.debug("Assign addresses to a slave interface in the BLUE plane".format(veth))
+                    log.debug("BLUE VRF should be unchanged, but required dependency to VETH address assignment".format(vrf))
+                    
         for index in await create_policy_routing_rules_and_routes(red, blue, index, ndb):
-            index.commit()
-        
+            log.debug("commiting route/rule to NDB {}".format(index.commit()))
     return ndb
                         
-            
 async def create_configuration():
     if not Path("/run/_netcrave/").exists():
         Path("/run/_netcrave").mkdir(parents = True, exist_ok = False)
@@ -209,7 +224,7 @@ async def create_configuration():
         Path("/run/_netcrave/docker/plugins/").mkdir(parents = True, exist_ok = False)
         
     if not swallow(lambda: getpwnam("_netcrave")):
-        cmd(["/usr/bin/env", "groupadd", "_netcrave"])
+        await cmd_async("/usr/bin/env", "groupadd", "_netcrave")
         
     swallow(lambda: Path("/run/_netcrave/sock.dockerd").unlink())
     Path("/run/_netcrave/sock.dockerd").touch()
@@ -248,13 +263,11 @@ async def create_configuration():
             config.write("\n".join(["{env_key}={env_value}".format(
                 env_key = key, 
                 env_value = value) for key, value in netcrave_dotenv.get_default()]))
+            
     return dockerd, containerd
 
 async def setup_compose():
     return get_compose()
 
 async def setup_environment():
-    return (
-        await create_configuration(),
-        swallow(lambda: ez_rsa().netcrave_certificate()),
-        await create_networks())
+    return (await create_configuration(), await ez_rsa().netcrave_certificate(), await create_networks())

@@ -5,7 +5,7 @@ import subprocess
 import asyncio
 from threading import Thread
 from netcrave_docker_dockerd.setup_environment import setup_environment, setup_compose
-from netcrave_docker_util.cmd import cmd, cmd_async
+from netcrave_docker_util.cmd import cmd_async
 from netcrave_docker_util.lazy import swallow
 import logging 
 import signal 
@@ -20,14 +20,22 @@ class service():
         signal.signal(signal.SIGINT, self.sigint)
         self.log = logging.getLogger(__name__)
         
-    def _run_internal_driver(self):
+    async def _run_internal_driver(self):
         oci_network_driver()
         
     async def _run_dockerd(self):
-        await cmd_async("/opt/netcrave/bin/dockerd", "--config-file", "/etc/netcrave/_netcrave.json")
+        await cmd_async(
+            "/opt/netcrave/bin/dockerd", 
+            "--config-file", 
+            "/etc/netcrave/_netcrave.json")
         
     async def _run_containerd(self):
-        await cmd_async("/opt/netcrave/bin/containerd", "--root", "/srv/_netcrave/containerd", "--address", "/run/_netcrave/sock.containerd")
+        await cmd_async(
+            "/opt/netcrave/bin/containerd", 
+            "--root", 
+            "/srv/_netcrave/containerd", 
+            "--address", 
+            "/run/_netcrave/sock.containerd")
         
     async def _dockerd_post_start(self):        
         if len([index for index in self._proj.client.images() if len([
@@ -60,39 +68,42 @@ class service():
                 "frr-netcrave",
                 "frr-docker"], start = False)
                 
-    def cleanup(self):       
+    async def cleanup(self):       
         self.log.critical("please wait: attempting to shutdown cleanly...")
-        swallow(lambda: cmd("umount", "/mnt/_netcrave/docker-compose.yml"))
-        swallow(lambda: cmd("umount", "/mnt/_netcrave/.env"))
-        swallow(lambda: cmd("umount", "/mnt/_netcrave/docker"))
-        swallow(lambda: Path("/mnt/_netcrave/.env").unlink())
-        swallow(lambda: Path("/mnt/_netcrave/docker-compose.yml").unlink())
-        swallow(lambda: Path("/mnt/_netcrave/docker").rmdir())
-        swallow(lambda: self._ndb.close())
+        await swallow_async(lambda: cmd_async("umount", "/mnt/_netcrave/docker-compose.yml"))
+        await swallow_async(lambda: cmd_async("umount", "/mnt/_netcrave/.env"))
+        await swallow_async(lambda: cmd_async("umount", "/mnt/_netcrave/docker"))
+        await swallow_async(lambda: Path("/mnt/_netcrave/.env").unlink())
+        await swallow_async(lambda: Path("/mnt/_netcrave/docker-compose.yml").unlink())
+        await swallow_async(lambda: Path("/mnt/_netcrave/docker").rmdir())
+        await swallow_async(lambda: self._ndb.close())
         self.log.critical("finished")
         
-    def sigint(self, sig, frame):
-        self.cleanup()
+    async def sigint(self, sig, frame):
+        [index.cancel() for index in asyncio.all_tasks()]
+        await self.cleanup()
         
     async def start(self):
         try:
             self.log.debug("starting daemon, debugging is enabled")
             sockets, self._ca, self._ndb = await setup_environment()
             self._dockerd_sock, self._containerd_sock = sockets
+            self.log.info("configuration initialized and loaded")
+            self.log.info("starting daemons")
             
-            self._procs = asyncio.gather(
-                self._run_containerd(),
-                self._run_dockerd())
-            
-            await self._procs
-            
+            async with asyncio.TaskGroup() as tg:
+                await asyncio.gather(
+                    tg.create_task(self._run_containerd()),
+                    tg.create_task(self._run_dockerd()))
+                
         except Exception as ex:
             self.log.critical("Caught non-recoverable error in early startup {ex} {stacktrace}".format(
                 ex = ex, 
                 stacktrace = "".join(
                     traceback.format_exception(ex))))
+            [index.cancel() for index in asyncio.all_tasks()]
             self.cleanup()
-    
+
     async def create_service(self):
         systemd_script = """
             [Unit]
@@ -114,7 +125,7 @@ class service():
             with open("/etc/systemd/system/netcrave-dockerd-daemon.service", 'w') as file:
                 file.write(systemd_script)
             
-            result = await cmd(["/usr/bin/env", "systemctl", "daemon-reload"])
+            result = await cmd("/usr/bin/env", "systemctl", "daemon-reload")
             
             if result.returncode != 0:
                 Path("/etc/systemd/system/netcrave-dockerd-daemon.service").unlink()

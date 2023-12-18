@@ -16,7 +16,7 @@ def get_default():
        'exec-root': '/srv/_netcrave/state', 
        'fixed-cidr-v6': 'fc00::/64', 
        'group': '_netcrave', 
-       'hosts': ['unix:///run/_netcrave/sock.docker'], 
+       'hosts': ['unix:///run/_netcrave/sock.dockerd'], 
        'ip-forward': True, 
        'ip-masq': False, 
        'iptables': False, 
