@@ -21,9 +21,10 @@ class service():
         signal.signal(signal.SIGINT, self.sigint)
         self.log = logging.getLogger(__name__)
         self._docker_dependency = asyncio.Lock()
+        self._docker_network_driver_dependency = asyncio.Lock()
         
     async def _run_internal_driver(self):
-        await internal_network_driver()
+        await internal_network_driver(self._docker_dependency)
         
     async def _run_dockerd(self):
         await cmd_async(
@@ -35,54 +36,70 @@ class service():
         await cmd_async(
             "/opt/netcrave/bin/containerd", 
             "--root", 
-            "/srv/_netcrave/containerd", 
+            "/srv/netcrave/_netcrave/containerd", 
             "--address", 
-            "/run/_netcrave/sock.containerd")
+            "/run/netcrave/_netcrave/sock.containerd")
     
     async def _wait_for_docker_daemon(self):
         while True:
             try: 
-                docker.client.DockerClient("unix:///run/_netcrave/sock.dockerd")
+                docker.client.DockerClient("unix:///run/netcrave/_netcrave/sock.dockerd")
                 self.log.info("docker is online, releasing dependency lock")
                 self._docker_dependency.release()
                 return
             except DockerException as ex:
                 self.log.warn("waiting for docker daemon to come online")
             await asyncio.sleep(1)
+    
+    async def _wait_for_docker_network_driver(self):
+        while True:
+            try:
+                pass
+                #docker.client.DockerClient("unix:///run/_netcrave/sock.dockerd")
+                #self.log.info("docker is online, releasing dependency lock")
+                #self._docker_dependency.release()
+                #return
+            except DockerException as ex:
+                self.log.warn("waiting for docker daemon to come online")
+            await asyncio.sleep(1)
             
     async def _dockerd_post_start(self):  
-        await self._docker_dependency.acquire()
-        self._docker_dependency.release()
+        await self._docker_network_driver_dependency.acquire()
+        self._docker_network_driver_dependency.release()
         self._proj = await setup_compose()
-        if len([index for index in self._proj.client.images() if len([
-            index2 for index2 in index.get("RepoTags") if index2.startswith("netcrave")]) > 0]) == 0:
-            self._proj.build(["netcrave-image", "netcrave-docker-image"])
-        
-        certificate_volumes = [self._proj.volumes.volumes.get(
-            index) for index in self._proj.volumes.volumes.keys() if index.endswith("_ssl") 
-            and self._proj.volumes.volumes.get(index).exists()]
-        
-        if len(certificate_volumes) == 0:
-            self._proj.up(["cockroach-copy-certs"])
-            self._proj.up(["cockroach"])
-            self._proj.up(["cockroach-databases"])
-            self._proj.down(False, False)
-            self._proj.up([
-                "cockroach",
-                "ipam", 
-                "ifconfig", 
-                "haproxycfg", 
-                "cerfiticatemgr", 
-                "dnsd", 
-                "icap", 
-                "haproxy", 
-                "squid", 
-                "fluentd",
-                "davfs",
-                "acme",
-                "powerdns",
-                "frr-netcrave",
-                "frr-docker"], start = False)
+        try:
+            if len([index for index in self._proj.client.images() if len([
+                index2 for index2 in index.get("RepoTags") if index2.startswith("netcrave")]) > 0]) == 0:
+                self._proj.build(["netcrave-image"])
+                self._proj.build(["netcrave-docker-image"])
+            
+            certificate_volumes = [self._proj.volumes.volumes.get(
+                index) for index in self._proj.volumes.volumes.keys() if index.endswith("_ssl") 
+                and self._proj.volumes.volumes.get(index).exists()]
+            
+            if len(certificate_volumes) == 0:
+                self._proj.up(["cockroach-copy-certs"])
+                self._proj.up(["cockroach"])
+                self._proj.up(["cockroach-databases"])
+                self._proj.down(False, False)
+                self._proj.up([
+                    "cockroach",
+                    "ipam", 
+                    "ifconfig", 
+                    "haproxycfg", 
+                    "cerfiticatemgr", 
+                    "dnsd", 
+                    "icap", 
+                    "haproxy", 
+                    "squid", 
+                    "fluentd",
+                    "davfs",
+                    "acme",
+                    "powerdns",
+                    "frr-netcrave",
+                    "frr-docker"], start = False)
+        except Exception as ex: 
+            self.log.critical("compose failed {}".format(ex))
                 
     async def cleanup(self):       
         self.log.critical("please wait: attempting to shutdown cleanly...")
@@ -101,11 +118,9 @@ class service():
         while True:
             try:
                 self.log.debug("starting daemon, debugging is enabled")
-                sockets, self._ca, self._ndb = await setup_environment()
-                self._dockerd_sock, self._containerd_sock = sockets
+                self._ca, self._ndb = await setup_environment()
                 self.log.info("configuration initialized and loaded")
                 self.log.info("starting daemons")                
-                
                 async with asyncio.TaskGroup() as tg:
                     await self._docker_dependency.acquire()
                     await asyncio.gather(
@@ -113,11 +128,11 @@ class service():
                         tg.create_task(self._run_containerd()),
                         tg.create_task(self._run_dockerd()),
                         tg.create_task(self._dockerd_post_start()),
-                        tg.create_task(self._wait_for_docker_daemon()))
+                        tg.create_task(self._wait_for_docker_daemon()),
+                        tg.create_task(self._wait_for_docker_network_driver()))
                     
             except asyncio.CancelledError as ex:
                 self.log.critical("events cancelled {}",format(ex))
-                await self.cleanup()
                 raise
             except Exception as ex:
                 self.log.critical("Caught non-recoverable error in early startup {ex} {stacktrace}".format(

@@ -56,22 +56,23 @@ def _run_application(application: WSGIApplication, environ: WSGIEnviron) -> Resp
         del response_body[:]
         return response_body.append
     # Run the application.
-    body_iterable = application(environ, start_response)
-    try:
-        response_body.extend(body_iterable)
-        assert (
-            response_status is not None and response_reason is not None and response_headers is not None
-        ), "application did not call start_response()"
-        return Response(
-            status=response_status,
-            reason=response_reason,
-            headers=CIMultiDict(response_headers),
-            body=b"".join(response_body),
-        )
-    finally:
+    # body_iterable = application(environ, start_response)
+    # try:
+    #  response_body.extend(body_iterable)
+    assert (
+        response_status is not None and response_reason is not None and response_headers is not None
+    ), "application did not call start_response()"
+    return Response(
+        status=response_status,
+        reason=response_reason,
+        headers=CIMultiDict(response_headers),
+        body=b"".join(response_body),
+    )
+    
+    # finally:
         # Close the body.
-        if hasattr(body_iterable, "close"):
-            body_iterable.close()  # type: ignore
+        # if hasattr(body_iterable, "close"):
+        #    body_iterable.close()  # type: ignore
 
 class WSGIHandler:
     """

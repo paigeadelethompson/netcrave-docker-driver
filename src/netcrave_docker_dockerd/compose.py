@@ -43,7 +43,7 @@ async def get_compose():
             await cmd_async("mount", "-o", "bind,ro", "/etc/netcrave/docker-compose.yml", "/mnt/_netcrave/docker-compose.yml")
             e = Environment(
             get_environment())
-            e["DOCKER_HOST"] = "unix:///run/_netcrave/sock.dockerd"
+            e["DOCKER_HOST"] = "unix:///run/netcrave/_netcrave/sock.dockerd"
             
             return get_project(
                 "/mnt/_netcrave", 
@@ -66,12 +66,12 @@ async def get_compose():
         
         e = Environment(
             get_environment())
-        e["DOCKER_HOST"] = "unix:///run/_netcrave/sock.dockerd"
+        e["DOCKER_HOST"] = "unix:///run/netcrave/_netcrave/sock.dockerd"
         
-        return (cfg, get_project(
+        return get_project(
         "/mnt/_netcrave", 
         interpolate = True,
-        environment = e))
+        environment = e)
         
     except Exception as ex:
         log.critical(

@@ -22,6 +22,7 @@ from pwd import getpwnam
 import subprocess
 import logging
 from netcrave_docker_util.cmd import cmd_async
+import aiofiles 
 
 async def get_NDB():
     db = NDB(
@@ -220,60 +221,33 @@ async def create_networks():
     return ndb
                         
 async def create_configuration():
-    if not Path("/run/_netcrave/").exists():
-        Path("/run/_netcrave").mkdir(parents = True, exist_ok = False)
-    
-    if not Path("/run/_netcrave/docker/plugins/").exists():
-        Path("/run/_netcrave/docker/plugins/").mkdir(parents = True, exist_ok = False)
-        
     if not swallow(lambda: getpwnam("_netcrave")):
         await cmd_async("/usr/bin/env", "groupadd", "_netcrave")
         
-    swallow(lambda: Path("/run/_netcrave/sock.dockerd").unlink())
-    Path("/run/_netcrave/sock.dockerd").touch()
-    dockerd = socket(AF_UNIX, SOCK_STREAM)
-    swallow(lambda: dockerd.bind("/run/_netcrave/sock.dockerd"))
-    
-    swallow(lambda: Path("/run/_netcrave/docker/plugins/netcfg").unlink())
-    # Path("/run/_netcrave/docker/plugins/netcfg").touch()
-    # dockerd = socket(AF_UNIX, SOCK_STREAM)
-    # swallow(lambda: dockerd.bind("/run/_netcrave/docker/plugins/netcfg"))
-    
-    swallow(lambda: Path("/run/_netcrave/sock.containerd").unlink())
-    Path("/run/_netcrave/sock.containerd").touch()
-    containerd = socket(AF_UNIX, SOCK_STREAM)
-    swallow(lambda: containerd.bind("/run/_netcrave/sock.containerd"))
-
-    if not Path("/srv/_netcrave/").exists():
-        Path("/srv/_netcrave").mkdir(parents = True, exist_ok = False)
-    
-    if not Path("/srv/netcrave/_netcrave/containerd").exists():
-        Path("/srv/netcrave/_netcrave/containerd").mkdir(parents = True, exist_ok = False)
-
-    
-    if not Path("/srv/netcrave/_netcrave/NDB").exists():
-        Path("/srv/netcrave/_netcrave/NDB").mkdir(parents = True, exist_ok = False)
-        
-    if not Path("/etc/netcrave/ssl").exists():
-        Path("/etc/netcrave/ssl").mkdir(parents = True, exist_ok = False)
+    Path("/run/netcrave/_netcrave"                   ).mkdir(parents = True, exist_ok = True)
+    Path("/run/netcrave/_netcrave/sock.dockerd"      ).unlink(missing_ok = True)
+    Path("/run/netcrave/_netcrave/sock.containerd"   ).unlink(missing_ok = True)
+    Path("/srv/netcrave/_netcrave/state/plugins"     ).mkdir(parents = True, exist_ok = True)
+    Path("/srv/netcrave/_netcrave/data"              ).mkdir(parents = True, exist_ok = True)
+    Path("/srv/netcrave/_netcrave/containerd"        ).mkdir(parents = True, exist_ok = True)
+    Path("/srv/netcrave/_netcrave/NDB"               ).mkdir(parents = True, exist_ok = True)
+    Path("/etc/netcrave/ssl"                         ).mkdir(parents = True, exist_ok = True)
 
     if not Path("/etc/netcrave/_netcrave.json").exists():
-        with open("/etc/netcrave/_netcrave.json", "w") as config:
-            config.write(json.dumps(netcrave_docker_config.get_default()))
+        async with aiofiles.open("/etc/netcrave/_netcrave.json", "w") as config:
+            await config.write(json.dumps(netcrave_docker_config.get_default()))
     
     if not Path("/etc/netcrave/_netcrave.dotenv").exists():
-        with open("/etc/netcrave/_netcrave.dotenv", "w") as config:
-            config.write("\n".join(["{env_key}={env_value}".format(
+        async with aiofiles.open("/etc/netcrave/_netcrave.dotenv", "w") as config:
+            await config.write("\n".join(["{env_key}={env_value}".format(
                 env_key = key, 
                 env_value = value) for key, value in netcrave_dotenv.get_default()]))
-            
-    return dockerd, containerd
 
 async def setup_compose():
     return await get_compose()
 
 async def setup_environment():
-    config = await create_configuration()
+    await create_configuration()
     ca = await ez_rsa().netcrave_certificate() 
     ndb = await create_networks()
-    return (config, ca, ndb)
+    return (ca, ndb)

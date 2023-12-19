@@ -6,10 +6,14 @@ from netcrave_docker_dockerd.setup_environment import get_NDB
 from aiohttp import web
 import asyncio 
 from netcrave_docker_util.http import serve 
+import docker
+from pathlib import Path
+import socket 
+from socket import AF_UNIX, SOCK_STREAM
 
 class internal_driver:
     router = web.RouteTableDef()
-    def __init__(self):
+    def __init__(self, environ, start_response):
         self.headers = [("Content-Type", "application/vnd.docker.plugins.v1.2+json")]
         
     @router.route("POST", "/Plugin.Activate")
@@ -204,7 +208,20 @@ class internal_driver:
             json.dumps(dict()), 
             headers)
 
-async def internal_network_driver():
+async def internal_network_driver(docker_sem):
+    await docker_sem.acquire()
+    docker_sem.release()
+    
+    log = logging.getLogger(__name__)
+    
+    # root = docker.client.DockerClient("unix:///run/_netcrave/sock.dockerd").info().get("DockerRootDir")
+    
+    path = "/srv/netcrave/_netcrave/state/plugins"
+    sock_name = "netcfg.sock"
+    whole_path = "{path}/{sock_name}".format(path = path, sock_name = sock_name)
+    
+    Path(whole_path).unlink(missing_ok = True)
+    
     await serve(
         internal_driver, 
-        unix_socket = "/run/_netcrave/docker/plugins/netcfg")
+        unix_socket = "{path}".format(path = whole_path))
