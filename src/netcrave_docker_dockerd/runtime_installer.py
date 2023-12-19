@@ -6,7 +6,11 @@ from pathlib import Path
 from itertools import islice
 import platform
 from tempfile import mktemp
+import logging
 import sys 
+import asyncio
+import aiofiles
+import aiohttp 
 
 class installer():
     def _tarfile_mapper(
@@ -93,51 +97,61 @@ class installer():
                         "Makefile") if path.endswith(index)])) > 0)
                     
             }]
+
+    async def extract_archive(self, index, dl):
+        log = logging.getLogger(__name__)
+        if index.get("map") != None:
+            file_map = index.get("map")(dl)
+            tar = tarfile.open(dl)
+            for member in tar.getnames():
+                for mapped in file_map:
+                    if mapped.get("src") == member:                            
+                        file = tar.getmember(member)
+                        if not file.isdir():
+                            async with aiofiles.open(mapped.get("dst"), "wb") as out:
+                                await out.write(tar.extractfile(member).read())
+                                log.debug("extracted file {filename}".format(filename = mapped.get("dst")))
+                            async with aiofiles.open(mapped.get("dst"), "rb") as check:                                                                
+                                header = await check.read(2)
+                                if (mapped.get("dst").startswith("/opt/netcrave/cni-plugins") 
+                                    or mapped.get("dst").startswith("/opt/netcrave/bin") 
+                                    or mapped.get("dst").startswith("/opt/netcrave/libexec")) and (
+                                        header == bytes([0x7f, 0x45]) 
+                                        or header == bytes([0x23, 0x21])):
+                                    log.debug("set executable {filename}".format(filename = mapped.get("dst")))
+                                    Path(mapped.get("dst")).chmod(0o770)
+                        else:
+                            Path.mkdir(Path(mapped.get("dst")), parents = True, exist_ok = True)
+                            log.debug("created directory {direc}".format(direc = mapped.get("dst")))
+                        
+        if index.get("dst") == None:
+            log.debug("deleting {tempfile}".format(tempfile = dl))
+            Path(dl).unlink()
+            
+    async def install_one(self, index):
+        log = logging.getLogger(__name__)
+        if index.get("dst") != None and not Path(index.get("dst")).parent.exists():
+            Path.mkdir(Path(index.get("dst")).parent, parents = True, exist_ok = True)
+            log.debug("created directory {direc}".format(direc = Path(index.get("dst")).parent))
         
-    def install_all(self):
-        print("installing container runtimes")
-        print("""
+        dl = index.get("dst") != None and index.get("dst") or mktemp()
+
+        log.info("installing {url}".format(url = index.get(platform.machine())))
+        async with aiofiles.open(dl, 'wb') as f:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(index.get(platform.machine()), allow_redirects = True) as r:
+                    await f.write(await r.content.read())                
+                    log.debug("wrote {filename}".format(filename = dl))
+                    await self.extract_archive(index, dl)
+                        
+    async def install_all(self):
+        log = logging.getLogger(__name__)
+        log.info("installing container runtimes")
+        log.debug("""
             note: compressed archive extraction is one problem that python isn't any
             good at solving. Please give this a few moments to finish, it won't take
             too long.
             """)
-        for index in self._packages:
-            if index.get("dst") != None and not Path(index.get("dst")).parent.exists():
-                Path.mkdir(Path(index.get("dst")).parent, parents = True, exist_ok = True)
-                print("created directory {direc}".format(direc = Path(index.get("dst")).parent))
-            
-            dl = index.get("dst") != None and index.get("dst") or mktemp()
-
-            print("retrieving {url}".format(url = index.get(platform.machine())))
-            with open(dl, 'wb') as f:
-                r = requests.get(index.get(platform.machine()), allow_redirects = True)
-                f.write(r.content)
-                print("wrote {filename}".format(filename = dl))
-            if index.get("map") != None:
-                file_map = index.get("map")(dl)
-                tar = tarfile.open(dl)
-                for member in tar.getnames():
-                    for mapped in file_map:
-                        if mapped.get("src") == member:                            
-                            file = tar.getmember(member)
-                            if not file.isdir():
-                                with open(mapped.get("dst"), "wb") as out:
-                                    out.write(tar.extractfile(member).read())
-                                    print("extracted file {filename}".format(filename = mapped.get("dst")))
-                                with open(mapped.get("dst"), "rb") as check:                                                                
-                                    header = check.read(2)
-                                    if (mapped.get("dst").startswith("/opt/netcrave/cni-plugins") 
-                                        or mapped.get("dst").startswith("/opt/netcrave/bin") 
-                                        or mapped.get("dst").startswith("/opt/netcrave/libexec")) and (
-                                            header == bytes([0x7f, 0x45]) 
-                                            or header == bytes([0x23, 0x21])):
-                                        print("set executable {filename}".format(filename = mapped.get("dst")))
-                                        Path(mapped.get("dst")).chmod(0o770)
-                            else:
-                                Path.mkdir(Path(mapped.get("dst")), parents = True, exist_ok = True)
-                                print("created directory {direc}".format(direc = mapped.get("dst")))
-                            
-            if index.get("dst") == None:
-                print("deleting {tempfile}".format(tempfile = dl))
-                Path(dl).unlink()
-                            
+        async with asyncio.TaskGroup() as tg:
+            await asyncio.gather(*[tg.create_task(self.install_one(index)) for index in self._packages])     
+        log.info("installation complete")

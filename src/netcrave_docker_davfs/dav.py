@@ -1,4 +1,11 @@
-from netcrave_docker_davfs.dav import davfs_http
+import os
+from flask import request, Response
+from werkzeug.serving import run_simple
+from netcrave_docker_util.http import http_servers
+from netcrave_docker_util.flask import netcrave_flask
+from fs.memoryfs import MemoryFS
+
+mem_fs = MemoryFS()
 
 """
 This is the actual DAV server that can be implemented by services like certificatemgr

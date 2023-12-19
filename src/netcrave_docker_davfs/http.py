@@ -1,50 +1,44 @@
 import os
-from flask import Flask, request, Response
+from flask import request, Response
+from netcrave_docker_util.flask import netcrave_flask
 from werkzeug.serving import run_simple
-from netcrave_docker_davfs.fs import fuse_dav_filesystem 
 import json
 
-volume_driver = Flask(__name__)
-volume_map = {}
+volume_driver = netcrave_flask(__name__)
 
-def deserialize_request(request):
-    return json.loads(request)
+"""
+This part will use the client+fuse to target a DAV server (like certificatemgr)
+"""
 
-@volume_driver.route('/Plugin.Activate',           methods = ['POST'])
+@volume_driver.route('/Plugin.Activate', methods = ['POST'])
 def activate(request):
     raise NotImplementedError()
 
-@volume_driver.route('/VolumeDriver.Create',       methods = ['POST'])
+@volume_driver.route('/VolumeDriver.Create', methods = ['POST'])
 def create(request):
-    request_d = deserialize_request(request)
-    volume_name = request.get("volume_name")
-    options = request.get("Opts")
-    dav_target = options.get("dav_target")
-    
-    volume_map[volume_name] = fuse_dav_filesystem(dav_target)
     raise NotImplementedError()
 
-@volume_driver.route('/VolumeDriver.Remove',       methods = ['POST'])
+@volume_driver.route('/VolumeDriver.Remove', methods = ['POST'])
 def remove(request):
     raise NotImplementedError()
 
-@volume_driver.route('/VolumeDriver.Path',         methods = ['POST'])
+@volume_driver.route('/VolumeDriver.Path', methods = ['POST'])
 def path(request):
     raise NotImplementedError()
 
-@volume_driver.route('/VolumeDriver.Mount',        methods = ['POST'])
+@volume_driver.route('/VolumeDriver.Mount', methods = ['POST'])
 def mount(request):
     raise NotImplementedError()
 
-@volume_driver.route('/VolumeDriver.Unmount',      methods = ['POST'])
+@volume_driver.route('/VolumeDriver.Unmount', methods = ['POST'])
 def unmount(request):
     raise NotImplementedError()
 
-@volume_driver.route('/VolumeDriver.List',         methods = ['POST'])
+@volume_driver.route('/VolumeDriver.List', methods = ['POST'])
 def list_files(request):
     raise NotImplementedError()
 
-@volume_driver.route('/VolumeDriver.Get',          methods = ['POST'])
+@volume_driver.route('/VolumeDriver.Get', methods = ['POST'])
 def get_file(request):
     raise NotImplementedError()
 
@@ -54,7 +48,7 @@ def capabilities(request):
 
 def run_volume_driver():
     if os.environ.get("DAVFS_SOCK") == None:
-        path = "/run/docker/plugins"
+        path = "/run/docker/plugins/davfs"
         os.makedirs(path, exist_ok=True)
         path = "unix://{}/ipam".format(path)
     else:

@@ -8,26 +8,25 @@ import importlib.resources as resources
 import netcrave_compose
 import netcrave_compose.docker
 from pathlib import Path
+import asyncio
 import os, subprocess
 from netcrave_docker_dockerd.netcrave_dot_env import get as get_environment
 from netcrave_docker_util.exception import unknown 
+from netcrave_docker_util.cmd import cmd_async
 
-def compose_from_config_directory():
+async def compose_from_config_directory():
     return "/etc/netcrave/docker-compose.yml"
 
-def default_compose():
+async def default_compose():
     return Path(next((
         index for index in resources.files(
             netcrave_compose).iterdir() 
         if str(index).endswith("docker-compose.yml"))))
         
-def mount_build_context(context_path):
-    
-    
-    
+async def mount_build_context(context_path):
     subprocess.run(["mount", "-o", "bind,ro", context_path, "/mnt/_netcrave/docker"])
 
-def get_compose():
+async def get_compose():
     try:
         check = lambda run: run.returncode != 0 and (_ for _ in ()).throw(Exception(run)) or True
         Path("/mnt/_netcrave/docker").mkdir(parents = True, exist_ok = True)

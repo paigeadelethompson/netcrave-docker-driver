@@ -9,47 +9,47 @@ flask_app = Flask(__name__)
 def handle_invalid_usage(error):
     pass
 
-@flask_app.route('/Plugin.Activate',                           methods = ['POST'])
+@flask_app.route('/Plugin.Activate', methods = ['POST'])
 def plugin_activate():
     pass
 
-@flask_app.route('/NetworkDriver.GetCapabilities',             methods = ['POST'])
+@flask_app.route('/NetworkDriver.GetCapabilities', methods = ['POST'])
 def plugin_get_capabilities():
     pass
 
-@flask_app.route('/NetworkDriver.CreateNetwork',               methods = ['POST'])
+@flask_app.route('/NetworkDriver.CreateNetwork', methods = ['POST'])
 def plugin_create_network():
     pass
 
-@flask_app.route('/NetworkDriver.DeleteNetwork',               methods = ['POST'])
+@flask_app.route('/NetworkDriver.DeleteNetwork', methods = ['POST'])
 def plugin_delete_network():
     pass
 
-@flask_app.route('/NetworkDriver.CreateEndpoint',              methods = ['POST'])
+@flask_app.route('/NetworkDriver.CreateEndpoint', methods = ['POST'])
 def plugin_create_endpoint():
     pass
 
-@flask_app.route('/NetworkDriver.EndpointOperInfo',            methods = ['POST'])
+@flask_app.route('/NetworkDriver.EndpointOperInfo', methods = ['POST'])
 def plugin_endpoint_oper_info():
     pass
 
-@flask_app.route('/NetworkDriver.DeleteEndpoint',              methods = ['POST'])
+@flask_app.route('/NetworkDriver.DeleteEndpoint', methods = ['POST'])
 def plugin_delete_endpoint():
     pass
 
-@flask_app.route('/NetworkDriver.Join',                        methods = ['POST'])
+@flask_app.route('/NetworkDriver.Join', methods = ['POST'])
 def plugin_join():
     pass
 
-@flask_app.route('/NetworkDriver.Leave',                       methods = ['POST'])
+@flask_app.route('/NetworkDriver.Leave', methods = ['POST'])
 def plugin_leave():
     pass
 
-@flask_app.route('/NetworkDriver.DiscoverNew',                 methods = ['POST'])
+@flask_app.route('/NetworkDriver.DiscoverNew', methods = ['POST'])
 def plugin_discover_new():
     pass
 
-@flask_app.route('/NetworkDriver.DiscoverDelete',              methods = ['POST'])
+@flask_app.route('/NetworkDriver.DiscoverDelete', methods = ['POST'])
 def plugin_discover_delete():
     pass
 

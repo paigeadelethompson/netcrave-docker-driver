@@ -1,4 +1,7 @@
-from netcrave_docker_dnsd.daemon import main
+from netcrave_docker_dnsd.daemon import dns_daemon
+
 
 if __name__ == '__main__':
-    main()
+    d = dns_daemon()
+    asyncio.get_event_loop().run_until_complete(d.main())
+

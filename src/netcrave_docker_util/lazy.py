@@ -6,7 +6,7 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-async def swallow_async():
+async def swallow_async(callback):
         try:
             await callback()
             return True

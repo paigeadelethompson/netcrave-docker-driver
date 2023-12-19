@@ -1,76 +1,79 @@
-from errno import ENOENT
-from stat import S_IFDIR, S_IFLNK, S_IFREG
-from time import time
+import asyncio
+import stat
+import logging
+import errno
+import pyfuse3
+import pyfuse3.asyncio
 
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
-from webdav3.client import Client
+"""
+ALong with the volume driver and an HTTP client, this prition is responsible
+for setting up FUSE
+"""
 
 class fuse_dav_filesystem(LoggingMixIn, Operations):
-    def __init__(self, remote):
-        if remote == "certificate":
-            self.remote = "2001:db8:aaaa:aabe:192:0:0:42"
+    def __init__(self):
+        super(TestFs, self).__init__()
+        self.hello_name = b"message"
+        self.hello_inode = pyfuse3.ROOT_INODE+1
+        self.hello_data = b"hello world\n"
+
+    async def getattr(self, inode, ctx=None):
+        entry = pyfuse3.EntryAttributes()
+        if inode == pyfuse3.ROOT_INODE:
+            entry.st_mode = (stat.S_IFDIR | 0o755)
+            entry.st_size = 0
+        elif inode == self.hello_inode:
+            entry.st_mode = (stat.S_IFREG | 0o644)
+            entry.st_size = len(self.hello_data)
         else:
-            raise NotImplementedError()
-        
-    def chmod(self, path, mode):
-        raise NotImplementedError()
+            raise pyfuse3.FUSEError(errno.ENOENT)
 
-    def chown(self, path, uid, gid):
-        raise NotImplementedError()
+        stamp = int(1438467123.985654 * 1e9)
+        entry.st_atime_ns = stamp
+        entry.st_ctime_ns = stamp
+        entry.st_mtime_ns = stamp
+        entry.st_gid = os.getgid()
+        entry.st_uid = os.getuid()
+        entry.st_ino = inode
 
-    def create(self, path, mode):
-        raise NotImplementedError()
+        return entry
 
-    def getattr(self, path, fh = None):
-        raise NotImplementedError()
+    async def lookup(self, parent_inode, name, ctx=None):
+        if parent_inode != pyfuse3.ROOT_INODE or name != self.hello_name:
+            raise pyfuse3.FUSEError(errno.ENOENT)
+        return await self.getattr(self.hello_inode)
 
-    def getxattr(self, path, name, position = 0):
-        raise NotImplementedError()
+    async def opendir(self, inode, ctx):
+        if inode != pyfuse3.ROOT_INODE:
+            raise pyfuse3.FUSEError(errno.ENOENT)
+        return inode
 
-    def listxattr(self, path):
-        raise NotImplementedError()
+    async def readdir(self, fh, start_id, token):
+        assert fh == pyfuse3.ROOT_INODE
 
-    def mkdir(self, path, mode):
-        raise NotImplementedError()
+        # only one entry
+        if start_id == 0:
+            pyfuse3.readdir_reply(
+                token, self.hello_name, await self.getattr(self.hello_inode), 1)
+        return
 
-    def open(self, path, flags):
-        raise NotImplementedError()
+    async def setxattr(self, inode, name, value, ctx):
+        if inode != pyfuse3.ROOT_INODE or name != b'command':
+            raise pyfuse3.FUSEError(errno.ENOTSUP)
 
-    def read(self, path, size, offset, fh):
-        raise NotImplementedError()
+        if value == b'terminate':
+            pyfuse3.terminate()
+        else:
+            raise pyfuse3.FUSEError(errno.EINVAL)
 
-    def readdir(self, path, fh):
-        raise NotImplementedError()
+    async def open(self, inode, flags, ctx):
+        if inode != self.hello_inode:
+            raise pyfuse3.FUSEError(errno.ENOENT)
+        if flags & os.O_RDWR or flags & os.O_WRONLY:
+            raise pyfuse3.FUSEError(errno.EACCES)
+        return pyfuse3.FileInfo(fh=inode)
 
-    def readlink(self, path):
-        raise NotImplementedError()
+    async def read(self, fh, off, size):
+        assert fh == self.hello_inode
+        return self.hello_data[off:off+size]
 
-    def removexattr(self, path, name):
-        raise NotImplementedError()
-
-    def rename(self, old, new):
-        raise NotImplementedError()
-
-    def rmdir(self, path):
-        raise NotImplementedError()
-
-    def setxattr(self, path, name, value, options, position = 0):
-        raise NotImplementedError()
-
-    def statfs(self, path):
-        raise NotImplementedError()
-
-    def symlink(self, target, source):
-        raise NotImplementedError()
-
-    def truncate(self, path, length, fh = None):
-        raise NotImplementedError()
-
-    def unlink(self, path):
-        raise NotImplementedError()
-
-    def utimens(self, path, times = None):
-        raise NotImplementedError()
-
-    def write(self, path, data, offset, fh):
-        raise NotImplementedError()

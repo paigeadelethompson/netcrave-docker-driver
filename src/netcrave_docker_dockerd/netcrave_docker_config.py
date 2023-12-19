@@ -20,6 +20,12 @@ def get_default():
        'ip-forward': True, 
        'ip-masq': False, 
        'iptables': False, 
+        "default-runtime": "runc",
+        "runtimes": {
+            "kata-runtime": {
+                "path": "/opt/netcrave/bin/kata-runtime"
+            }
+        },
        'ip6tables': False, 
        'ipv6': True, 
        'live-restore': True, 

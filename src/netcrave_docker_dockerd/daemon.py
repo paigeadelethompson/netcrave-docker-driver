@@ -3,14 +3,13 @@
 from pathlib import Path
 import subprocess
 import asyncio
-from threading import Thread
 from netcrave_docker_dockerd.setup_environment import setup_environment, setup_compose
 from netcrave_docker_util.cmd import cmd_async
-from netcrave_docker_util.lazy import swallow
+from netcrave_docker_util.lazy import swallow, swallow_async
 import logging 
 import signal 
 import traceback 
-from netcrave_docker_dockerd.driver import oci_network_driver
+from netcrave_docker_dockerd.driver import internal_network_driver
 import sys 
 from queue import Queue
 
@@ -21,7 +20,7 @@ class service():
         self.log = logging.getLogger(__name__)
         
     async def _run_internal_driver(self):
-        oci_network_driver()
+        await internal_network_driver()
         
     async def _run_dockerd(self):
         await cmd_async(
@@ -77,33 +76,35 @@ class service():
         await swallow_async(lambda: Path("/mnt/_netcrave/docker-compose.yml").unlink())
         await swallow_async(lambda: Path("/mnt/_netcrave/docker").rmdir())
         await swallow_async(lambda: self._ndb.close())
-        self.log.critical("finished")
         
-    async def sigint(self, sig, frame):
+    def sigint(self, sig, frame):
         [index.cancel() for index in asyncio.all_tasks()]
-        await self.cleanup()
         
     async def start(self):
-        try:
-            self.log.debug("starting daemon, debugging is enabled")
-            sockets, self._ca, self._ndb = await setup_environment()
-            self._dockerd_sock, self._containerd_sock = sockets
-            self.log.info("configuration initialized and loaded")
-            self.log.info("starting daemons")
-            
-            async with asyncio.TaskGroup() as tg:
-                await asyncio.gather(
-                    tg.create_task(self._run_containerd()),
-                    tg.create_task(self._run_dockerd()))
-                
-        except Exception as ex:
-            self.log.critical("Caught non-recoverable error in early startup {ex} {stacktrace}".format(
-                ex = ex, 
-                stacktrace = "".join(
-                    traceback.format_exception(ex))))
-            [index.cancel() for index in asyncio.all_tasks()]
-            self.cleanup()
-
+        while True:
+            try:
+                self.log.debug("starting daemon, debugging is enabled")
+                sockets, self._ca, self._ndb = await setup_environment()
+                self._dockerd_sock, self._containerd_sock = sockets
+                self.log.info("configuration initialized and loaded")
+                self.log.info("starting daemons")                
+                async with asyncio.TaskGroup() as tg:
+                    await asyncio.gather(
+                        tg.create_task(self._run_internal_driver()),
+                        tg.create_task(self._run_containerd()),
+                        tg.create_task(self._run_dockerd()))
+            except asyncio.CancelledError as ex:
+                self.log.critical("events cancelled {}",format(ex))
+                await self.cleanup()
+                raise
+            except Exception as ex:
+                self.log.critical("Caught non-recoverable error in early startup {ex} {stacktrace}".format(
+                    ex = ex, 
+                    stacktrace = "".join(
+                        traceback.format_exception(ex))))
+                [index.cancel() for index in asyncio.all_tasks()]
+                await self.cleanup()
+            break
     async def create_service(self):
         systemd_script = """
             [Unit]
@@ -122,7 +123,7 @@ class service():
             """
             
         if not Path("/etc/systemd/system/netcrave-dockerd-daemon.service").exists():
-            with open("/etc/systemd/system/netcrave-dockerd-daemon.service", 'w') as file:
+            async with open("/etc/systemd/system/netcrave-dockerd-daemon.service", 'w') as file:
                 file.write(systemd_script)
             
             result = await cmd("/usr/bin/env", "systemctl", "daemon-reload")

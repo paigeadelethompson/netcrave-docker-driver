@@ -17,12 +17,25 @@ A plugin to expand the functionality of Docker
 
 # Getting started / Development
 
-- settings are isolated to a dotenv file, see `dotenv.example` and copy it to `.env` in the root directory of the repository
+- `apt install python-is-python3 python3-poetry`
+- `git clone https://github.com/paigeadelethompson/netcrave-docker-driver.git`
+- `poetry install`
 
-from the root directory of this repository:
-- `docker-compose build`
-- ` docker-compose up --no-start`
+- Docker and the container runtimes need to be installed to /opt/netcrave and can be done in one command: 
+```
+export DEBUG=1
+sudo poetry run netcrave-docker-install --runtimes
+```
+- With Docker and associated runtimes installed,  start the daemon:
+```
+export DEBUG=1
+sudo poetry run netcrave-docker-daemon
+```
 
+This will automatically create the directories, and default configuration files as well as start and supervise `dockerd` and `containerd`
+
+- To reset the state:
+- `rm -rf /srv/netcrave/ ; rm -rf /etc/netcrave/ ; rm -rf /srv/_netcrave/ rm -rf /run/_netcrave ; ip netns delete _netcrave`
 
 # Future items under consideration (not this release scope)
 - authorization plugin; access to the docker daemon and resource controls defined by an identity (with ory / openid)

@@ -6,7 +6,7 @@ from cryptography.x509.oid import NameOID
 import datetime
 import uuid
 import asyncio
-
+import logging 
 from pathlib import Path
 
 class ez_rsa():
@@ -42,8 +42,10 @@ class ez_rsa():
             return self
     
     async def create_server_certificate(self, domain, country, state, locality, org, key_file_dest, cert_file_dest):
+        log = logging.getLogger(__name__)
         if Path(key_file_dest).exists() or Path(cert_file_dest).exists():
-            raise Exception("key and/or certificate already exist")
+            log.info("netcrave-docker certificate already exists, not creating")
+            return self
         
         root_key = serialization.load_pem_private_key(
             open("/etc/netcrave/ssl/ca.key", 'rb').read(), 

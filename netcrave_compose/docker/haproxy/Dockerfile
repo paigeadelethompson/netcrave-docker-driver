@@ -16,4 +16,4 @@ RUN mkdir /ctl_socket
 
 ARG ADMIN_SOCKET_ADDR
 
-CMD haproxy -W -S /ctl_socket/sock -f /etc/haproxy/haproxy.cfg
+CMD haproxy -W -S /run/sock.haproxy -f /etc/haproxy/haproxy.cfg

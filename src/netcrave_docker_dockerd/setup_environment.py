@@ -24,15 +24,11 @@ import logging
 from netcrave_docker_util.cmd import cmd_async
 
 async def get_NDB():
-    log = logging.getLogger(__name__)
     db = NDB(
         db_provider = 'sqlite3', 
         db_spec = '/srv/netcrave/_netcrave/NDB/network.sqlite3', 
         rtnl_debug = os.environ.get("DEBUG") and True or False, 
         log = "off")
-    log.debug(db.sources.add(netns = "_netcrave"))
-    with db.interfaces.wait(target = "_netcrave",ifname = "lo") as loopback:
-        log.debug(loopback.set(state = "up"))
     return db
 
 async def create_policy_routing_rules_and_routes(
@@ -117,6 +113,15 @@ async def create_networks():
     log.debug(dotenv)
     ndb = await get_NDB()
     
+    if ndb.netns.exists("_netcrave"):
+        log.info("networking already configured, not re-creating")
+        return ndb
+    
+    log.debug(db.sources.add(netns = "_netcrave"))
+    
+    with db.interfaces.wait(target = "_netcrave",ifname = "lo") as loopback:
+        log.debug(loopback.set(state = "up"))
+        
     distinct_networks = [index for index, _ in groupby([
             index for index in dotenv.keys() 
             if index.endswith("_NET_4") 
@@ -232,9 +237,9 @@ async def create_configuration():
     swallow(lambda: dockerd.bind("/run/_netcrave/sock.dockerd"))
     
     swallow(lambda: Path("/run/_netcrave/docker/plugins/netcfg").unlink())
-    Path("/run/_netcrave/docker/plugins/netcfg").touch()
-    dockerd = socket(AF_UNIX, SOCK_STREAM)
-    swallow(lambda: dockerd.bind("/run/_netcrave/docker/plugins/netcfg"))
+    # Path("/run/_netcrave/docker/plugins/netcfg").touch()
+    # dockerd = socket(AF_UNIX, SOCK_STREAM)
+    # swallow(lambda: dockerd.bind("/run/_netcrave/docker/plugins/netcfg"))
     
     swallow(lambda: Path("/run/_netcrave/sock.containerd").unlink())
     Path("/run/_netcrave/sock.containerd").touch()
@@ -267,7 +272,10 @@ async def create_configuration():
     return dockerd, containerd
 
 async def setup_compose():
-    return get_compose()
+    return await get_compose()
 
 async def setup_environment():
-    return (await create_configuration(), await ez_rsa().netcrave_certificate(), await create_networks())
+    config = await create_configuration()
+    ca = await ez_rsa().netcrave_certificate() 
+    ndb = await create_networks()
+    return (config, ca, ndb)
