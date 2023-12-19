@@ -8,36 +8,25 @@ import asyncio
 from netcrave_docker_util.http import serve 
 
 class internal_driver:
-    routes = web.RouteTableDef()
+    router = web.RouteTableDef()
     def __init__(self):
         self.headers = [("Content-Type", "application/vnd.docker.plugins.v1.2+json")]
         
-        # self.routes.route("POST", "/NetworkDriver.GetCapabilities", self.plugin_get_capabilities)
-        # self.routes.route("POST", "/NetworkDriver.CreateNetwork", self.plugin_create_network)
-        # self.routes.route("POST", "/NetworkDriver.DeleteNetwork", self.plugin_delete_network)
-        # self.routes.route("POST", "/NetworkDriver.CreateEndpoint", self.plugin_create_endpoint)
-        # self.routes.route("POST", "/NetworkDriver.Join", self.plugin_join)
-        # self.routes.route("POST", "/NetworkDriver.ProgramExternalConnectivity", self.plugin_program_external_connectivity)
-        # self.routes.route("POST", "/NetworkDriver.EndpointOperInfo", self.plugin_endpoint_oper_info)
-        # self.routes.route("POST", "/NetworkDriver.DeleteEndpoint", self.plugin_delete_endpoint)
-        # self.routes.route("POST", "/NetworkDriver.Leave", self.plugin_leave)
-        # self.routes.route("POST", "/NetworkDriver.DiscoverNew", self.plugin_discover_new)
-        # self.routes.route("POST", "/NetworkDriver.DiscoverDelete", self.plugin_discover_delete)
-        # self.routes.route("POST", "/NetworkDriver.RevokeExternalConnectivity", self.plugin_revoke_external_connectivity)
-    
-    @routes.route("POST", "/Plugin.Activate")
+    @router.route("POST", "/Plugin.Activate")
     async def plugin_activate(self):
         return (
             200, 
             json.dumps({ "Implements": ["NetworkDriver"] }), 
             headers)
 
+    @router.route("POST", "/NetworkDriver.GetCapabilities")
     async def plugin_get_capabilities(self):
         return (
             200, 
             json.dumps({ "Scope": "local" }), 
             headers)
 
+    @router.route("POST", "/NetworkDriver.CreateNetwork")
     async def plugin_create_network(self):
         data = json.loads(request.data)
         network_id = data.get("NetworkID")
@@ -50,12 +39,14 @@ class internal_driver:
             json.dumps(dict()), 
             headers)
 
+    @router.route("POST", "/NetworkDriver.DeleteNetwork")
     async def plugin_delete_network(self):
         return (
             200, 
             json.dumps(dict()), 
             headers)
-
+    
+    @router.route("POST", "/NetworkDriver.CreateEndpoint")
     async def plugin_create_endpoint(self):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
@@ -114,7 +105,9 @@ class internal_driver:
                     }
                 }), 
             headers)
-
+                    
+    
+    @router.route("POST", "/NetworkDriver.Join")
     async def plugin_join(self):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
@@ -130,7 +123,9 @@ class internal_driver:
                     'DstPrefix': 'eth',
                     'Gateway': None }}), 
                     headers))
-
+                
+    
+    @router.route("POST", "/NetworkDriver.ProgramExternalConnectivity")
     async def plugin_program_external_connectivity(self):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
@@ -141,6 +136,8 @@ class internal_driver:
             json.dumps(dict()), 
             headers)
 
+    
+    @router.route("POST", "/NetworkDriver.EndpointOperInfo")
     async def plugin_endpoint_oper_info(self):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
@@ -172,30 +169,35 @@ class internal_driver:
                 network_id: str(network)}}), 
             headers)
 
+    @router.route("POST", "/NetworkDriver.DeleteEndpoint")
     async def plugin_delete_endpoint(self):
         return (
             200, 
             json.dumps(dict()), 
             headers)
 
+    @router.route("POST", "/NetworkDriver.Leave")
     async def plugin_leave(self):
         return (
             200, 
             json.dumps(dict()), 
             headers)
-        
+    
+    @router.route("POST", "/NetworkDriver.DiscoverNew")
     async def plugin_discover_new(self):
         return (
             200,
             json.dumps(dict()), 
             headers)
     
+    @router.route("POST", "/NetworkDriver.DiscoverDelete")
     async def plugin_discover_delete(self):
         return (
             200, 
             json.dumps(dict()), 
             headers)
     
+    @router.route("POST", "/NetworkDriver.RevokeExternalConnectivity")
     async def plugin_revoke_external_connectivity(self):
         return (
             200, 
@@ -203,4 +205,6 @@ class internal_driver:
             headers)
 
 async def internal_network_driver():
-    await serve(internal_driver, unix_socket = "/run/_netcrave/docker/plugins/netcfg")
+    await serve(
+        internal_driver, 
+        unix_socket = "/run/_netcrave/docker/plugins/netcfg")

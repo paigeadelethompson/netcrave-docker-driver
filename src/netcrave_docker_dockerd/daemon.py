@@ -12,12 +12,15 @@ import traceback
 from netcrave_docker_dockerd.driver import internal_network_driver
 import sys 
 from queue import Queue
+import docker 
+from docker.errors import DockerException
 
 class service():
     def __init__(self):
-        self.stdoutHandler = logging.StreamHandler(stream=sys.stdout)
+        self.stdoutHandler = logging.StreamHandler(stream = sys.stdout)
         signal.signal(signal.SIGINT, self.sigint)
         self.log = logging.getLogger(__name__)
+        self._docker_dependency = asyncio.Lock()
         
     async def _run_internal_driver(self):
         await internal_network_driver()
@@ -35,8 +38,22 @@ class service():
             "/srv/_netcrave/containerd", 
             "--address", 
             "/run/_netcrave/sock.containerd")
-        
-    async def _dockerd_post_start(self):        
+    
+    async def _wait_for_docker_daemon(self):
+        while True:
+            try: 
+                docker.client.DockerClient("unix:///run/_netcrave/sock.dockerd")
+                self.log.info("docker is online, releasing dependency lock")
+                self._docker_dependency.release()
+                return
+            except DockerException as ex:
+                self.log.warn("waiting for docker daemon to come online")
+            await asyncio.sleep(1)
+            
+    async def _dockerd_post_start(self):  
+        await self._docker_dependency.acquire()
+        self._docker_dependency.release()
+        self._proj = await setup_compose()
         if len([index for index in self._proj.client.images() if len([
             index2 for index2 in index.get("RepoTags") if index2.startswith("netcrave")]) > 0]) == 0:
             self._proj.build(["netcrave-image", "netcrave-docker-image"])
@@ -88,11 +105,16 @@ class service():
                 self._dockerd_sock, self._containerd_sock = sockets
                 self.log.info("configuration initialized and loaded")
                 self.log.info("starting daemons")                
+                
                 async with asyncio.TaskGroup() as tg:
+                    await self._docker_dependency.acquire()
                     await asyncio.gather(
                         tg.create_task(self._run_internal_driver()),
                         tg.create_task(self._run_containerd()),
-                        tg.create_task(self._run_dockerd()))
+                        tg.create_task(self._run_dockerd()),
+                        tg.create_task(self._dockerd_post_start()),
+                        tg.create_task(self._wait_for_docker_daemon()))
+                    
             except asyncio.CancelledError as ex:
                 self.log.critical("events cancelled {}",format(ex))
                 await self.cleanup()

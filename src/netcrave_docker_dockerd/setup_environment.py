@@ -108,9 +108,7 @@ async def create_policy_routing_rules_and_routes(
 async def create_networks():
     log = logging.getLogger(__name__)
     config = netcrave_docker_config.get()
-    log.debug(config)
     dotenv = netcrave_dotenv.get()
-    log.debug(dotenv)
     ndb = await get_NDB()
     
     if ndb.netns.exists("_netcrave"):

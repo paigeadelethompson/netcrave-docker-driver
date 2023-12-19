@@ -2,11 +2,15 @@
 
 from dotenv import load_dotenv, dotenv_values
 from collections import OrderedDict
+import logging 
 
 def get():
+    log = logging.getLogger(__name__)
     if not load_dotenv("/etc/netcrave/_netcrave.dotenv"):
         raise Exception("failed to load _netcrave.dotenv")
-    return dotenv_values("/etc/netcrave/_netcrave.dotenv")
+    data = dotenv_values("/etc/netcrave/_netcrave.dotenv")
+    log.debug("loaded dotenv {}".format(data))
+    return data
     
 def get_default():
     return list(OrderedDict([

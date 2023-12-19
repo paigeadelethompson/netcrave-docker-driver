@@ -1,9 +1,14 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
 import json
+import logging 
 
 def get():
-    return json.load(open("/etc/netcrave/_netcrave.json"))
+    log = logging.getLogger(__name__)
+    config = json.load(open("/etc/netcrave/_netcrave.json"))
+    log.debug("loaded configuration file {}".format(config))
+    return config
+    
 
 def get_default():
    return {
