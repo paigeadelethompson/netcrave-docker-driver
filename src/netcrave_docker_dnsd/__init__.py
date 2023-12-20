@@ -5,7 +5,9 @@ from netcrave_docker_dnsd.daemon import dns_daemon
 from netcrave_docker_util.log import configure_logger_for_module
 
 
-module_logger, main_logger, console_handler = configure_logger_for_module(__name__)
+module_logger, main_logger, console_handler = configure_logger_for_module(
+    __name__)
+
 
 def daemon():
     dnsd = dns_daemon()

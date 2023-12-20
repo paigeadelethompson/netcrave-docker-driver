@@ -8,6 +8,11 @@ async def create_configuration(
         "docker.authz/1.0",
         "docker.logdriver/1.0",
         "docker.metricscollector/1.0"]):
-            return {'Description': desc, 'Documentation': 'https://github.com/paigeadelethompson/netcrave-docker-driver',
-                    'Interface': {'Socket': socket_path, 'Types': plugin_type},
-                    'Network': {'Type': 'host'}}
+    return {
+        'Description': desc,
+        'Documentation': 'https://github.com/paigeadelethompson/netcrave-docker-driver',
+        'Interface': {
+            'Socket': socket_path,
+            'Types': plugin_type},
+        'Network': {
+            'Type': 'host'}}

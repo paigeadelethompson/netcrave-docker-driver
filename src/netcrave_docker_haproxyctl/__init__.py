@@ -3,7 +3,9 @@ from netcrave_docker_haproxyctl.daemon import haproxy_ctl
 from netcrave_docker_util.log import configure_logger_for_module
 
 
-module_logger, main_logger, console_handler = configure_logger_for_module(__name__)
+module_logger, main_logger, console_handler = configure_logger_for_module(
+    __name__)
+
 
 def daemon():
     ctl = haproxy_ctl()

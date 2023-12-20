@@ -1,6 +1,7 @@
-import logging 
-import os 
+import logging
+import os
 import datetime
+
 
 def configure_logger_for_module(name):
     module_logger = logging.getLogger(name)
@@ -49,5 +50,5 @@ def configure_logger_for_module(name):
 
     module_logger.addHandler(console_handler)
     main_logger.addHandler(console_handler)
-    
+
     return module_logger, main_logger, console_handler

@@ -3,9 +3,10 @@ import errno
 import pyfuse3
 import pyfuse3.asyncio
 
+
 class fuse_dav_filesystem(LoggingMixIn, Operations):
     def __init__(self):
-       raise NotImplementedError()
+        raise NotImplementedError()
 
     async def getattr(self, inode, ctx=None):
         entry = pyfuse3.EntryAttributes()

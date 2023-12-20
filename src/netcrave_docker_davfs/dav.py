@@ -1,5 +1,6 @@
 from netcrave_docker_util.http_handler import handler
 
+
 class dav_filesystem_service(handler):
     def __init__(self):
         super().__init__()
@@ -13,7 +14,7 @@ class dav_filesystem_service(handler):
         self.add_route("PUT", "/", self.put)
         self.add_route("DELETE", "/", self.delete)
         self.add_route("UNLOCK", "/", self.unlock)
-        
+
     def lock(self, request):
         raise NotImplementedError()
 

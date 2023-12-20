@@ -1,16 +1,29 @@
-from netcrave_docker_util.http_handler import handler 
+from netcrave_docker_util.http_handler import handler
+
 
 class ipam_driver(handler):
     def __init__(self):
         super().__init__()
         self.add_route("POST", '/Plugin.Activate', self.plugin_activate)
         self.add_route("POST", '/Plugin.Activate', self.Activate)
-        self.add_route("POST", '/IpamDriver.GetCapabilities', self.GetCapabilities)
-        self.add_route("POST", '/IpamDriver.GetDefaultAddressSpaces', self.GetDefaultAddressSpaces)
+        self.add_route(
+            "POST",
+            '/IpamDriver.GetCapabilities',
+            self.GetCapabilities)
+        self.add_route(
+            "POST",
+            '/IpamDriver.GetDefaultAddressSpaces',
+            self.GetDefaultAddressSpaces)
         self.add_route("POST", '/IpamDriver.RequestPool', self.RequestPool)
         self.add_route("POST", '/IpamDriver.ReleasePool', self.ReleasePool)
-        self.add_route("POST", '/IpamDriver.RequestAddress', self.RequestAddress)
-        self.add_route("POST", '/IpamDriver.ReleaseAddress', self.ReleaseAddress)
+        self.add_route(
+            "POST",
+            '/IpamDriver.RequestAddress',
+            self.RequestAddress)
+        self.add_route(
+            "POST",
+            '/IpamDriver.ReleaseAddress',
+            self.ReleaseAddress)
 
     def Activate(self, request):
         raise NotImplementedError()

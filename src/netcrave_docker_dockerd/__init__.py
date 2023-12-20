@@ -9,7 +9,9 @@ from netcrave_docker_dockerd.runtime_installer import installer
 from netcrave_docker_util.log import configure_logger_for_module
 
 
-module_logger, main_logger, console_handler = configure_logger_for_module(__name__)
+module_logger, main_logger, console_handler = configure_logger_for_module(
+    __name__)
+
 
 def daemon():
     svc = service()
@@ -22,6 +24,7 @@ def daemon():
         except Exception as ex:
             logging.getLogger(__name__).error(ex)
             sys.exit(1)
+
 
 def install():
     try:

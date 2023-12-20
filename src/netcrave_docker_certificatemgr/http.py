@@ -1,6 +1,7 @@
 from netcrave_docker_davfs.dav import dav_filesystem_service
 from netcrave_docker_certificatemgr.service import memory_filesystem_service
 
+
 class certificate_manager_service(dav_filesystem_service):
     def lock(self, request):
         raise NotImplementedError()
