@@ -1,8 +1,5 @@
 import os
-import docker
 import asyncio
-import powerdns_client
-from powerdns_client.rest import ApiException
 
 """
 https://pypi.org/project/powerdns-client/

@@ -6,9 +6,7 @@ import OpenSSL
 from acme import challenges
 from acme import client
 from acme import crypto_util
-from acme import errors
 from acme import messages
-from acme import standalone
 
 
 class crypto():

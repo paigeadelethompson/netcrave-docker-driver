@@ -1,11 +1,8 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
-import uuid
-from netcrave_docker_ipam.scope import scope, get_network_object, get_ipv6_network_object_from_token
-from netcrave_docker_ipam.tags import tag, instantiate_tags
-from netcrave_docker_ipam.label import scope_label_masks, interface_type, tag_type
-from itertools import islice
-from sys import maxsize as MAX
+from netcrave_docker_ipam.scope import scope, get_network_object
+from netcrave_docker_ipam.tags import instantiate_tags
+from netcrave_docker_ipam.label import tag_type
 import os
 
 

@@ -1,7 +1,6 @@
 import logging
 import traceback
 import sys
-from netcrave_docker_util.exception import unknown
 from pathlib import Path
 
 log = logging.getLogger(__name__)

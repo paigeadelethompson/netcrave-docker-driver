@@ -1,6 +1,5 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 from netcrave_docker_util.http_handler import handler
-from netcrave_docker_acme.acme import initiate_lets_encrypt_request
 
 
 class acme_service(handler):

@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import sys
-from netcrave_docker_ipam.http import ipam_driver
 from netcrave_docker_util.log import configure_logger_for_module
 
 

@@ -1,5 +1,4 @@
 import asyncio
-from aiohttp import web
 from pathlib import Path
 from netcrave_docker_util.http import serve
 

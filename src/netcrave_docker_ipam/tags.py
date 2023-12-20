@@ -1,5 +1,4 @@
 from netcrave_docker_ipam.db import ipam_database_client
-from netcrave_docker_ipam.label import scope_label_masks, interface_type, tag_type
 
 
 def instantiate_tags(tags, kind):

@@ -5,7 +5,6 @@ import subprocess
 import asyncio
 from netcrave_docker_dockerd.setup_environment import setup_environment, setup_compose
 from netcrave_docker_util.cmd import cmd_async
-from netcrave_docker_util.lazy import swallow, swallow_async
 import logging
 import signal
 import traceback

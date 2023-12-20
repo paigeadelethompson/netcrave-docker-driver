@@ -1,9 +1,7 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
-import requests
 import tarfile
 from pathlib import Path
-from itertools import islice
 import platform
 from tempfile import mktemp
 import logging

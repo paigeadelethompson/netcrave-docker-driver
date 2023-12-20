@@ -3,7 +3,6 @@ import logging
 import asyncio.subprocess
 import os
 from os import O_NONBLOCK
-import itertools
 from pathlib import Path
 import logging
 import os
