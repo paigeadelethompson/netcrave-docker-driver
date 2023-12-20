@@ -140,15 +140,7 @@ class internal_driver(handler):
             [])
 
     async def plugin_join(self, request):
-
-        return (
-            200,
-            json.dumps(json.dumps({
-                'InterfaceName': {
-                    'SrcName': None,
-                    'DstPrefix': 'eth',
-                    'Gateway': None}}),
-                []))
+        raise NotImplementedError()
 
     async def plugin_program_external_connectivity(self, request):
         return (
