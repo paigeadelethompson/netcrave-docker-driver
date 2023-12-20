@@ -139,7 +139,7 @@ class schema():
                     for index in self.template_to_scopes(
                             schema,
                             current.get("subnet_template"),
-                            current_deserialized
+                            current_deserialized,
                             which="ipv4_prefix_length"):
                         yield index
 

@@ -38,6 +38,6 @@ for index in chain.from_iterable([["{}/{}".format(
     print("output file name: {}".format(out_file))
     print("full output path: {}".format(out_path / out_file))
 
-    open(out_path / out_file, 'w+').write(outputText)
+    open(out_path / out_file, 'wb+').write(outputText)
 
     print("saved")

@@ -1,3 +1,4 @@
+import asyncio
 from haproxyadmin import haproxy
 
 
@@ -13,4 +14,5 @@ class haproxy_ctl():
         self._hap = haproxy.HAProxy(socket_dir='/run/sock.haproxy')
 
     async def run(self):
-        pass
+        while True:
+            asyncio.sleep(1)

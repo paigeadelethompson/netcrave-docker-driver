@@ -45,7 +45,7 @@ class service():
         with self.ndb().interfaces.create(
                 ifname=net.network_interface_name(),
                 kind=self.interface_kind(net),
-                netns=net.network_namespace()
+                netns=net.network_namespace(),
                 vrf=net.network_vrf_id()) as cur_if:
             self.configure_network_addresses(cur_if, net)
 

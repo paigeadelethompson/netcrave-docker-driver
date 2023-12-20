@@ -1,59 +1,33 @@
-from netcrave_docker_davfs.dav import davfs_http
+from netcrave_docker_davfs.dav import dav_filesystem_service
+from netcrave_docker_certificatemgr.service import memory_filesystem_service
 
-"""
-This is the actual DAV server that can be implemented by services like certificatemgr
-to provide a file system for example containing issued certificates stored on CRDB
-and cached on MemoryFS
-"""
+class certificate_manager_service(dav_filesystem_service):
+    def lock(self, request):
+        raise NotImplementedError()
 
-dav_http = netcrave_flask()
+    def prop_find(self, request):
+        raise NotImplementedError()
 
+    def proppatch(self, request):
+        raise NotImplementedError()
 
-@dav_http.route('/', methods=["LOCK"])
-def lock(request):
-    raise NotImplementedError()
+    def make_collection(self, request):
+        raise NotImplementedError()
 
+    def copy(self, request):
+        raise NotImplementedError()
 
-@dav_http.route('/', methods=["PROPFIND"])
-def propfind(request):
-    raise NotImplementedError()
+    def move(self, request):
+        raise NotImplementedError()
 
+    def get(self, request):
+        raise NotImplementedError()
 
-@dav_http.route('/', methods=["PROPPATCH"])
-def proppatch(request):
-    raise NotImplementedError()
+    def put(self, request):
+        raise NotImplementedError()
 
+    def delete(self, request):
+        raise NotImplementedError()
 
-@dav_http.route('/', methods=["MKCOL"])
-def make_collection(request):
-    raise NotImplementedError()
-
-
-@dav_http.route('/', methods=["COPY"])
-def copy(request):
-    raise NotImplementedError()
-
-
-@dav_http.route('/', methods=["MOVE"])
-def move(request):
-    raise NotImplementedError()
-
-
-@dav_http.route('/', methods=["GET"])
-def get(request):
-    raise NotImplementedError()
-
-
-@dav_http.route('/', methods=["PUT"])
-def put(request):
-    raise NotImplementedError()
-
-
-@dav_http.route('/', methods=["DELETE"])
-def delete(request):
-    raise NotImplementedError()
-
-
-@dav_http.route('/', methods=["UNLOCK"])
-def unlock(request):
-    raise NotImplementedError()
+    def unlock(self, request):
+        raise NotImplementedError()

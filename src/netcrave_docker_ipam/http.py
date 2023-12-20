@@ -1,63 +1,34 @@
-from flask import Flask, request, Response
-from netcrave_docker_ipam.service import service
-from werkzeug.serving import run_simple
-import os
+from netcrave_docker_util.http_handler import handler 
 
-flask_app = Flask(__name__)
+class ipam_driver(handler):
+    def __init__(self):
+        super().__init__()
+        self.add_route("POST", '/Plugin.Activate', self.plugin_activate)
+        self.add_route("POST", '/Plugin.Activate', self.Activate)
+        self.add_route("POST", '/IpamDriver.GetCapabilities', self.GetCapabilities)
+        self.add_route("POST", '/IpamDriver.GetDefaultAddressSpaces', self.GetDefaultAddressSpaces)
+        self.add_route("POST", '/IpamDriver.RequestPool', self.RequestPool)
+        self.add_route("POST", '/IpamDriver.ReleasePool', self.ReleasePool)
+        self.add_route("POST", '/IpamDriver.RequestAddress', self.RequestAddress)
+        self.add_route("POST", '/IpamDriver.ReleaseAddress', self.ReleaseAddress)
 
-s = service()
+    def Activate(self, request):
+        raise NotImplementedError()
 
+    def GetCapabilities(self, request):
+        raise NotImplementedError()
 
-@flask_app.errorhandler(NotImplementedError)
-def handle_invalid_usage(error):
-    pass
+    def GetDefaultAddressSpaces(self, request):
+        raise NotImplementedError()
 
+    def RequestPool(self, request):
+        raise NotImplementedError()
 
-@flask_app.route('/Plugin.Activate', methods=['POST'])
-def Activate():
-    pass
+    def ReleasePool(self, request):
+        raise NotImplementedError()
 
+    def RequestAddress(self, request):
+        raise NotImplementedError()
 
-@flask_app.route('/IpamDriver.GetCapabilities', methods=['POST'])
-def GetCapabilities():
-    pass
-
-
-@flask_app.route('/IpamDriver.GetDefaultAddressSpaces', methods=['POST'])
-def GetDefaultAddressSpaces():
-    pass
-
-
-@flask_app.route('/IpamDriver.RequestPool', methods=['POST'])
-def RequestPool():
-    pass
-
-
-@flask_app.route('/IpamDriver.ReleasePool', methods=['POST'])
-def ReleasePool():
-    pass
-
-
-@flask_app.route('/IpamDriver.RequestAddress', methods=['POST'])
-def RequestAddress():
-    pass
-
-
-@flask_app.route('/IpamDriver.ReleaseAddress', methods=['POST'])
-def ReleaseAddress():
-    pass
-
-
-def main():
-    if os.environ.get("IPAMD_SOCK") is None:
-        path = "/run/docker/plugins"
-        os.makedirs(path, exist_ok=True)
-        path = "unix://{}/ipam".format(path)
-    else:
-        path = os.environ.get("IPAM_SOCK")
-
-    run_simple(
-        hostname=path,
-        port=0,
-        application=flask_app,
-        use_reloader=True)
+    def ReleaseAddress(self, request):
+        raise NotImplementedError()

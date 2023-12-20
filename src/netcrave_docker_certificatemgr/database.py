@@ -1,7 +1,6 @@
 import psycopg
 import os
 
-
 class docker_network_certificatemgr_database_client():
     def __init__(self):
         pass

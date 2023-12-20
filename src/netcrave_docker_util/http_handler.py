@@ -1,3 +1,4 @@
+import asyncio
 from aiohttp import web
 from pathlib import Path
 from netcrave_docker_util.http import serve
@@ -17,7 +18,13 @@ class handler():
     async def health_check(self, request):
         return (204, None, headers)
 
-    async def internal_network_driver(sem, cls, path, sock_name):
+    async def http_listener(cls, bind_host, port, sem=asyncio.Lock()):
+        raise NotImplementedError()
+
+    async def https_listener(cls, bind_host, port, cert_path, key_path, ca_cert_path, sem=asyncio.Lock()):
+        raise NotImplementedError()
+
+    async def internal_network_driver(cls, path, sock_name, sem=asyncio.Lock()):
         await sem.acquire()
         sem.release()
 

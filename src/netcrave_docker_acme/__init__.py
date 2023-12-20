@@ -1,18 +1,27 @@
-from netcrave_docker_acme.http import run_acme, run_job_processor
-from threading import Thread
-import time
+import asyncio
+import logging
+import sys
+from netcrave_docker_acme.http import acme_service
+from netcrave_docker_util.log import configure_logger_for_module
 
 
-def main():
-    t2 = Thread(target=run_acme)
-    t3 = Thread(target=run_job_processor)
+module_logger, main_logger, console_handler = configure_logger_for_module(__name__)
 
-    t2.run()
-    t3.run()
-
-    while True:
-        time.sleep(1)
-
-
-if __name__ == '__main__':
-    main()
+async def start_all():    
+    async with asyncio.TaskGroup() as tg:
+        await asyncio.gather(tg.create_task(svc.http_listener(cls=acme_service, 
+                                                              bind_host="0.0.0.0", 
+                                                              port=80)),
+            tg.create_task(svc.https_listener(cls=acme_service, 
+                                              bind_host="0.0.0.0", 
+                                              port=443, 
+                                              cert_path="/etc/ssl/server.pem", 
+                                              key_path="/etc/ssl/server.key", 
+                                              ca_cert_path="/etc/ssl/ca.pem")))
+        
+def daemon():
+    try:
+        asyncio.get_event_loop().run_until_complete(start_all())
+    except asyncio.CancelledError:
+        logging.getLogger(__name__).info("Tasks aborted, exiting")
+        sys.exit(1)

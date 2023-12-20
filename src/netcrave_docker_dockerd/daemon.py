@@ -25,10 +25,10 @@ class service():
 
     async def _run_internal_driver(self):
         await internal_driver.internal_network_driver(
-            sem=self._docker_dependency,
             cls=internal_driver,
             path="/srv/netcrave/_netcrave/state/plugins",
-            sock_name="netcfg.sock")
+            sock_name="netcfg.sock",
+            sem=self._docker_dependency)
 
     async def _run_dockerd(self):
         await cmd_async(

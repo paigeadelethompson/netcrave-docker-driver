@@ -14,7 +14,7 @@ class shared_secret_crypto():
         return h.digest()
 
     async def __init__(self):
-         if os.environ.get("PRESHARED_KEY") == None:
+        if os.environ.get("PRESHARED_KEY") == None:
             raise Exception("missing pre-shared key")
         self._cip = ChaCha20Poly1305(self.nonce(), os.environ.get("PRESHARED_KEY"))
         

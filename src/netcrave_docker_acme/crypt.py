@@ -59,3 +59,4 @@ class crypto():
         return client_acme
 
     def order_new_certificate(self, client_acme, csr):
+        raise NotImplementedError()

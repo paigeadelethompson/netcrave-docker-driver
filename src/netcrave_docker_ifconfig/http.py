@@ -1,98 +1,57 @@
-from flask import Flask, request, Response
-from werkzeug.serving import run_simple
-import os
+from netcrave_docker_util.http_handler import handler 
 
-flask_app = Flask(__name__)
+class network_driver(handler):
+    def __init__(self):
+        super().__init__()
+        self.add_route("POST", '/Plugin.Activate', self.plugin_activate)
+        self.add_route("POST", '/NetworkDriver.GetCapabilities', self.plugin_get_capabilities)
+        self.add_route("POST", '/NetworkDriver.CreateNetwork', self.plugin_create_network)
+        self.add_route("POST", '/NetworkDriver.DeleteNetwork', self.plugin_delete_network)
+        self.add_route("POST", '/NetworkDriver.CreateEndpoint', self.plugin_create_endpoint)
+        self.add_route("POST", '/NetworkDriver.EndpointOperInfo', self.plugin_endpoint_oper_info)
+        self.add_route("POST", '/NetworkDriver.DeleteEndpoint', self.plugin_delete_endpoint)
+        self.add_route("POST", '/NetworkDriver.Join', self.plugin_join)
+        self.add_route("POST", '/NetworkDriver.Leave', self.plugin_leave)
+        self.add_route("POST", '/NetworkDriver.DiscoverNew', self.plugin_discover_new)
+        self.add_route("POST", '/NetworkDriver.DiscoverDelete', self.plugin_discover_delete)
+        self.add_route("POST", '/NetworkDriver.ProgramExternalConnectivity', self.plugin_program_external_connectivity)
+        self.add_route("POST", '/NetworkDriver.RevokeExternalConnectivity', self.plugin_revoke_external_connectivity)
+    
+    def plugin_activate(self, request):
+        raise NotImplementedError()
+    
+    def plugin_get_capabilities(self, request):
+        raise NotImplementedError()
+    
+    def plugin_create_network(self, request):
+        raise NotImplementedError()
+    
+    def plugin_delete_network(self, request):
+        raise NotImplementedError()
+    
+    def plugin_create_endpoint(self, request):
+        raise NotImplementedError()
+    
+    def plugin_endpoint_oper_info(self, request):
+        raise NotImplementedError()
+    
+    def plugin_delete_endpoint(self, request):
+        raise NotImplementedError()
+    
+    def plugin_join(self, request):
+        raise NotImplementedError()
+    
+    def plugin_leave(self, request):
+        raise NotImplementedError()
+    
+    def plugin_discover_new(self, request):
+        raise NotImplementedError()
+    
+    def plugin_discover_delete(self, request):
+        raise NotImplementedError()
+    
+    def plugin_program_external_connectivity(self, request):
+        raise NotImplementedError()
 
-
-@flask_app.errorhandler(NotImplementedError)
-def handle_invalid_usage(error):
-    pass
-
-
-@flask_app.route('/Plugin.Activate', methods=['POST'])
-def plugin_activate():
-    pass
-
-
-@flask_app.route('/NetworkDriver.GetCapabilities', methods=['POST'])
-def plugin_get_capabilities():
-    pass
-
-
-@flask_app.route('/NetworkDriver.CreateNetwork', methods=['POST'])
-def plugin_create_network():
-    pass
-
-
-@flask_app.route('/NetworkDriver.DeleteNetwork', methods=['POST'])
-def plugin_delete_network():
-    pass
-
-
-@flask_app.route('/NetworkDriver.CreateEndpoint', methods=['POST'])
-def plugin_create_endpoint():
-    pass
-
-
-@flask_app.route('/NetworkDriver.EndpointOperInfo', methods=['POST'])
-def plugin_endpoint_oper_info():
-    pass
-
-
-@flask_app.route('/NetworkDriver.DeleteEndpoint', methods=['POST'])
-def plugin_delete_endpoint():
-    pass
-
-
-@flask_app.route('/NetworkDriver.Join', methods=['POST'])
-def plugin_join():
-    pass
-
-
-@flask_app.route('/NetworkDriver.Leave', methods=['POST'])
-def plugin_leave():
-    pass
-
-
-@flask_app.route('/NetworkDriver.DiscoverNew', methods=['POST'])
-def plugin_discover_new():
-    pass
-
-
-@flask_app.route('/NetworkDriver.DiscoverDelete', methods=['POST'])
-def plugin_discover_delete():
-    pass
-
-
-@flask_app.route('/NetworkDriver.ProgramExternalConnectivity',
-                 methods=['POST'])
-def program_external_connectivity():
-    pass
-
-
-@flask_app.route('/NetworkDriver.RevokeExternalConnectivity', methods=['POST'])
-def revoke_external_connectivity():
-    pass
-
-
-def main():
-    run_simple(
-        hostname='unix:///run/netcrave/ipam/sock',
-        application=flask_app,
-        use_reloader=True)
-
-
-def main():
-    if os.environ.get("IFCONFIG_SOCK") is None:
-        path = "/run/docker/plugins"
-        os.makedirs(path, exist_ok=True)
-        path = "unix://{}/ifconfig".format(path)
-    else:
-        path = os.environ.get("ifconfig_SOCK")
-
-    run_simple(
-        hostname=path,
-        port=0,
-        application=flask_app,
-        use_reloader=True)
+    def plugin_revoke_external_connectivity(self, request):
+        raise NotImplementedError()
