@@ -3,37 +3,26 @@
 from ipaddress import IPv6Network
 from netcrave_docker_ipam.label import interface_type
 from netcrave_docker_ipam.tags import get_ipam_scope_tags
-from netcrave_docker_dockerd.setup_environment import get_NDB
+from netcrave_docker_util.ndb import network_database
 
 
 class service():
-    def __init__(self):
-        self._ndb = get_NDB()
-
-    def ndb(self):
-        return self._ndb
-
-    def family(self, net):
+    async def family(self, net):
         if isinstance(IPv6Network, type(net)):
             return "inet6"
         else:
             return "inet4"
 
-    def activate(self):
+    async def activate(self):
         raise NotImplementedError()
 
-    def _create_net_namespaces(self):
-        for index in get_ipam_scope_tags():
-            self.ndb().sources.add(netns=index.netns_name())
+    async def _create_net_namespaces(self):
+        raise NotImplementedError()
 
-    def _create_vrf_interfaces(self):
-        for index in get_ipam_scope_tags():
-            self.ndb().interfaces.create(
-                kind='vrf',
-                ifname=index.name(),
-                vrf_table=index.vrf_id()).commit()
+    async def _create_vrf_interfaces(self):
+        raise NotImplementedError()
 
-    def interface_kind(self, net):
+    async def interface_kind(self, net):
         if interface_type.veth == net.network_interface_kind():
             return "veth"
         elif interface_type.dummy == net.network_interface_kind():
@@ -41,21 +30,11 @@ class service():
         elif interface_type.bridge == net.network_interface_kind():
             return "bridge"
 
-    def configure_network_interfaces(self, net):
-        with self.ndb().interfaces.create(
-                ifname=net.network_interface_name(),
-                kind=self.interface_kind(net),
-                netns=net.network_namespace(),
-                vrf=net.network_vrf_id()) as cur_if:
-            self.configure_network_addresses(cur_if, net)
+    async def configure_network_interfaces(self, net):
+        raise NotImplementedError()
 
-    def configure_network_addresses(self, new_if, net):
-        with new_if as intf:
-            intf.add_ip(str(net.network_address()),
-                        prefix=net.prefix_length(),
-                        family=self.family(net),
-                        noprefixroute=())
-            raise NotImplementedError()
+    async def configure_network_addresses(self, new_if, net):
+        raise NotImplementedError()
 
-    def configure_network_routes(self, net):
+    async def configure_network_routes(self, net):
         raise NotImplementedError()
