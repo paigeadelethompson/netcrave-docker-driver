@@ -116,9 +116,9 @@ async def create_networks():
         log.info("networking already configured, not re-creating")
         return ndb
     
-    log.debug(db.sources.add(netns = "_netcrave"))
+    log.debug(ndb.sources.add(netns = "_netcrave"))
     
-    with db.interfaces.wait(target = "_netcrave",ifname = "lo") as loopback:
+    with ndb.interfaces.wait(target = "_netcrave",ifname = "lo") as loopback:
         log.debug(loopback.set(state = "up"))
         
     distinct_networks = [index for index, _ in groupby([

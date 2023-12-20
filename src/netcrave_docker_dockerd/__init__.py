@@ -1,6 +1,6 @@
 import datetime
 import logging
-import os
+import os, sys
 import asyncio
 import argparse
 from netcrave_docker_dockerd.daemon import service
@@ -45,10 +45,16 @@ module_logger.addHandler(console_handler)
 main_logger.addHandler(console_handler)
 
 def daemon():
+    svc = service()
     try:
-        asyncio.get_event_loop().run_until_complete(service().start())
+        asyncio.get_event_loop().run_until_complete(svc.start())
     except asyncio.CancelledError:
         logging.getLogger(__name__).info("Tasks aborted, exiting")
+        try:
+            svc.cleanup()
+        except Exception as ex:
+            logging.getLogger(__name__).error(ex)
+            sys.exit(1)
     
 def install():
     try:

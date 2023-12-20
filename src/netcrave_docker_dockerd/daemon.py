@@ -9,7 +9,7 @@ from netcrave_docker_util.lazy import swallow, swallow_async
 import logging 
 import signal 
 import traceback 
-from netcrave_docker_dockerd.driver import internal_network_driver
+from netcrave_docker_dockerd.driver import internal_driver
 import sys 
 from queue import Queue
 import docker 
@@ -24,7 +24,11 @@ class service():
         self._docker_network_driver_dependency = asyncio.Lock()
         
     async def _run_internal_driver(self):
-        await internal_network_driver(self._docker_dependency)
+        await internal_driver.internal_network_driver(
+            sem = self._docker_dependency,
+            cls = internal_driver,
+            path =  "/srv/netcrave/_netcrave/state/plugins", 
+            sock_name = "netcfg.sock")
         
     async def _run_dockerd(self):
         await cmd_async(
@@ -99,17 +103,24 @@ class service():
                     "frr-netcrave",
                     "frr-docker"], start = False)
         except Exception as ex: 
-            self.log.critical("compose failed {}".format(ex))
+            self.log.error("compose failed {}".format(ex))
                 
-    async def cleanup(self):       
+    def cleanup(self):       
         self.log.critical("please wait: attempting to shutdown cleanly...")
-        await swallow_async(lambda: cmd_async("umount", "/mnt/_netcrave/docker-compose.yml"))
-        await swallow_async(lambda: cmd_async("umount", "/mnt/_netcrave/.env"))
-        await swallow_async(lambda: cmd_async("umount", "/mnt/_netcrave/docker"))
-        await swallow_async(lambda: Path("/mnt/_netcrave/.env").unlink())
-        await swallow_async(lambda: Path("/mnt/_netcrave/docker-compose.yml").unlink())
-        await swallow_async(lambda: Path("/mnt/_netcrave/docker").rmdir())
-        await swallow_async(lambda: self._ndb.close())
+        subprocess.run(["umount", "/mnt/_netcrave/docker-compose.yml"])
+        subprocess.run(["umount", "/mnt/_netcrave/.env"])
+        subprocess.run(["umount", "/mnt/_netcrave/docker"])
+        Path("/mnt/_netcrave/.env").unlink(missing_ok = True)
+        Path("/mnt/_netcrave/docker-compose.yml").unlink(missing_ok = True)
+        
+        if Path("/mnt/_netcrave/docker").exists():
+            try:
+                Path("/mnt/_netcrave/docker").rmdir()
+            except:
+                pass
+        
+        if self._ndb != None:
+            self._ndb.close()
         
     def sigint(self, sig, frame):
         [index.cancel() for index in asyncio.all_tasks()]
@@ -140,7 +151,6 @@ class service():
                     stacktrace = "".join(
                         traceback.format_exception(ex))))
                 [index.cancel() for index in asyncio.all_tasks()]
-                await self.cleanup()
             break
     async def create_service(self):
         systemd_script = """

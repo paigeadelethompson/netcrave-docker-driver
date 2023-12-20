@@ -6,11 +6,9 @@ from netcrave_docker_dockerd.setup_environment import get_NDB
 from aiohttp import web
 from netcrave_docker_util.http_handler import handler
 import asyncio 
-from netcrave_docker_util.http import serve 
 import docker
 from pathlib import Path
 import socket 
-from socket import AF_UNIX, SOCK_STREAM
 import json 
 
 class internal_driver(handler):
@@ -30,19 +28,19 @@ class internal_driver(handler):
         self.add_route("POST", "/NetworkDriver.DiscoverDelete", self.plugin_discover_delete)
         self.add_route("POST", "/NetworkDriver.RevokeExternalConnectivity", self.plugin_revoke_external_connectivity)
         
-    async def plugin_activate(self):        
+    async def plugin_activate(self, request):        
         return (
             200, 
             json.dumps({ "Implements": ["NetworkDriver"] }), 
             headers)
     
-    async def plugin_get_capabilities(self):
+    async def plugin_get_capabilities(self, request):
         return (
             200, 
             json.dumps({ "Scope": "local" }), 
             headers)
 
-    async def plugin_create_network(self):        
+    async def plugin_create_network(self, request):        
         data = json.loads(request.data)
         network_id = data.get("NetworkID")
         options = data.get("Options")
@@ -54,13 +52,13 @@ class internal_driver(handler):
             json.dumps(dict()), 
             headers)
 
-    async def plugin_delete_network(self):        
+    async def plugin_delete_network(self, request):        
         return (
             200, 
             json.dumps(dict()), 
             headers)
     
-    async def plugin_create_endpoint(self):
+    async def plugin_create_endpoint(self, request):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
         network_id = data.get("NetworkID")
@@ -119,7 +117,7 @@ class internal_driver(handler):
                 }), 
             headers)
                     
-    async def plugin_join(self):
+    async def plugin_join(self, request):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
         network_id = data.get("NetworkID")
@@ -135,7 +133,7 @@ class internal_driver(handler):
                     'Gateway': None }}), 
                     headers))
                 
-    async def plugin_program_external_connectivity(self):
+    async def plugin_program_external_connectivity(self, request):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
         network_id = data.get("NetworkID")
@@ -145,7 +143,7 @@ class internal_driver(handler):
             json.dumps(dict()), 
             headers)
 
-    async def plugin_endpoint_oper_info(self):
+    async def plugin_endpoint_oper_info(self, request):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
         network_id = data.get("NetworkID")
@@ -176,51 +174,33 @@ class internal_driver(handler):
                 network_id: str(network)}}), 
             headers)
                 
-    async def plugin_delete_endpoint(self):
+    async def plugin_delete_endpoint(self, request):
         return (
             200, 
             json.dumps(dict()), 
             headers)
 
-    async def plugin_leave(self):
+    async def plugin_leave(self, request):
         return (
             200, 
             json.dumps(dict()), 
             headers)
     
-    async def plugin_discover_new(self):
+    async def plugin_discover_new(self, request):
         return (
             200,
             json.dumps(dict()), 
             headers)
     
-    async def plugin_discover_delete(self):
+    async def plugin_discover_delete(self, request):
         return (
             200, 
             json.dumps(dict()), 
             headers)
     
-    async def plugin_revoke_external_connectivity(self):
-        log.debug("hi")
+    async def plugin_revoke_external_connectivity(self, request):
         return (
             200, 
             json.dumps(dict()), 
             headers)
 
-async def internal_network_driver(docker_sem):
-    await docker_sem.acquire()
-    docker_sem.release()
-    
-    log = logging.getLogger(__name__)
-    
-    # root = docker.client.DockerClient("unix:///run/_netcrave/sock.dockerd").info().get("DockerRootDir")
-    
-    path = "/srv/netcrave/_netcrave/state/plugins"
-    sock_name = "netcfg.sock"
-    whole_path = "{path}/{sock_name}".format(path = path, sock_name = sock_name)
-    
-    Path(whole_path).unlink(missing_ok = True)
-    
-    await serve(
-        internal_driver, 
-        unix_socket = "{path}".format(path = whole_path))

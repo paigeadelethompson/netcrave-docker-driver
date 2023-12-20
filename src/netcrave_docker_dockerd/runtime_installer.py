@@ -61,6 +61,7 @@ class installer():
                 "dst": "/opt/netcrave/sbin/runsc"
             },
             {
+                "name": "Firecracker",
                 "x86_64": "https://github.com/firecracker-microvm/firecracker/releases/download/v1.5.1/firecracker-v1.5.1-x86_64.tgz",
                 "map": (lambda archive: self._tarfile_mapper(
                     archive, 
@@ -78,6 +79,7 @@ class installer():
                         ".json") if path.endswith(index)])) > 0))
             },
             {
+                "name": "CRI-O",
                 "desc": "https://cri-o.github.io/cri-o/",
                 "x86_64": "https://storage.googleapis.com/k8s-conform-cri-o/artifacts/cri-o.amd64.52126218773e74abb6d3b92f431300a217da5ed8.tar.gz",
                 "arm64": "https://storage.googleapis.com/k8s-conform-cri-o/artifacts/cri-o.arm64.52126218773e74abb6d3b92f431300a217da5ed8.tar.gz",

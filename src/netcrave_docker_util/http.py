@@ -6,7 +6,6 @@ import logging
 import os
 import sys
 from concurrent.futures import Executor, ThreadPoolExecutor
-from contextlib import contextmanager
 from tempfile import SpooledTemporaryFile
 from typing import Any, Awaitable, IO, Callable, Dict, Generator, Iterable, List, Optional, Tuple
 from wsgiref.util import is_hop_by_hop
@@ -47,7 +46,7 @@ async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -
         if environ.get("SERVER_NAME") == "unix":
             request_uri = "/{request}".format(request = environ.get("HTTP_HOST"))
             callback = next((index.get("callback") for index in app.router if index.get("path") == request_uri))
-            response_status, response_body, headers = await callback()
+            response_status, response_body, headers = await callback(environ)
             response_headers = app.headers + headers
             return Response(
                 status = response_status,
@@ -56,6 +55,7 @@ async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -
                 body = b"".join(response_body))
     except Exception as ex:
         log.error(ex)
+        return Response(status = 500, reason = None, headers = app.headers, body = None)
 
 class WSGIHandler:
     """
@@ -206,8 +206,6 @@ def static_cors_middleware(*, static: Iterable[Tuple[str, str]], static_cors: st
         return response
     return do_static_cors_middleware
 
-
-#@contextmanager
 async def run_server(
     application: WSGIApplication,
     *,
