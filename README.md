@@ -17,8 +17,11 @@ A plugin to expand the functionality of Docker
 - python3-poetry 
 - build-essential 
 - python3-dev 
-- libfuse3-dev
 - python-is-python3 
+
+```
+sudo apt install libfuse3-dev build-essential python3-dev
+```
 
 # Driver components and dependency 
 - Nearly everything will depend on CockroachDB (postgresql-based) it's a good database with good security mechanisms.

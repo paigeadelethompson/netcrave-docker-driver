@@ -20,5 +20,6 @@ jobs:
         pip install pylint poetry
     - name: Analysing the code with pylint
       run: |
+        sudo apt -y install libfuse3-dev build-essential python3-dev
         poetry install --all-extras
         poetry run pylint $(git ls-files '*.py')
