@@ -3,9 +3,11 @@ import logging
 import os
 
 module_logger = logging.getLogger(__name__)
-module_logger.setLevel(logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
+module_logger.setLevel(
+    logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
 main_logger = logging.getLogger('__main__')
-main_logger.setLevel(logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
+main_logger.setLevel(logging.INFO if not os.environ.get(
+    'DEBUG') else logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 
@@ -24,16 +26,23 @@ try:
             'EXCEPTION': 'bold_red',
         })
 except ImportError:
-    stream_formatter = logging.Formatter('%(levelname)s %(module)s %(funcName)s %(message)s')
+    stream_formatter = logging.Formatter(
+        '%(levelname)s %(module)s %(funcName)s %(message)s')
 console_handler.setFormatter(stream_formatter)
 
 package_timestamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
 if os.path.isdir('logs'):
     file_handler = logging.FileHandler(
-        os.path.join('logs', '{}_{}.log'.format(__name__, package_timestamp)), mode='a')
-    file_handler.setLevel(logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter('%(asctime)s %(levelname)s %(module)s %(name)s %(message)s'))
+        os.path.join(
+            'logs',
+            '{}_{}.log'.format(
+                __name__,
+                package_timestamp)),
+        mode='a')
+    file_handler.setLevel(
+        logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s %(module)s %(name)s %(message)s'))
     module_logger.addHandler(file_handler)
     main_logger.addHandler(file_handler)
 

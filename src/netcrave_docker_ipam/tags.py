@@ -1,21 +1,23 @@
 from netcrave_docker_ipam.db import ipam_database_client
 from netcrave_docker_ipam.label import scope_label_masks, interface_type, tag_type
 
+
 def instantiate_tags(tags, kind):
-    if tags != None:
+    if tags is not None:
         return [tag(kind, index) for index in tags]
-    else: 
+    else:
         return []
-    
+
+
 class tag():
-    def __init__(self, 
-                 tag_type, 
-                 name, id       = None, 
-                 vrf_id         = None, 
-                 route_table_id = None, 
-                 netns_name     = None, 
-                 label_mask     = None):
-        
+    def __init__(self,
+                 tag_type,
+                 name, id=None,
+                 vrf_id=None,
+                 route_table_id=None,
+                 netns_name=None,
+                 label_mask=None):
+
         self._name = name
         self._type = tag_type
         self._id = id
@@ -29,7 +31,7 @@ class tag():
 
     def netns_name(self):
         return self._netns_name
-    
+
     def name(self):
         return self._name
 
@@ -42,19 +44,19 @@ class tag():
     def exists(self, cursor):
         query = """
         SELECT id, name, type, vrf_id, route_table_id, netns_name, label_mask
-        FROM pools.tags 
+        FROM pools.tags
         WHERE name = %s AND type = %s
         LIMIT 1
         """
-        (id, 
-         name, 
-         type, 
-         vrf_id, 
-         route_table_id, 
-         netns_name, 
+        (id,
+         name,
+         type,
+         vrf_id,
+         route_table_id,
+         netns_name,
          label_mask) = cursor.cursor().execute(
-             query, (self.name(), self.tag_type())).fetchone()            
-        return id != None and True or False
+             query, (self.name(), self.tag_type())).fetchone()
+        return id is not None and True or False
 
     def save(self, cursor):
         if not self.exists(cursor):
@@ -66,12 +68,15 @@ class tag():
             c = cursor.cursor()
             c.execute(query, (self.name(), self.tag_type()))
             self._id, _ = c.fetchone()
-                           
+
+
 def load_tags_from_database(tags):
     with ipam_database_client().database() as conn:
         cursor = conn.cursor()
         with conn.transaction():
-            err = [cursor.execute("SELECT * FROM pools.tags WHERE name = %s AND type = %s", 
-                                  (tag_name, tag_type)) for tag_name, tag_type in tags]
-            tags = [tag(t, name, id = id) for id, t, name in cursor.fetchall()]
+            err = [
+                cursor.execute(
+                    "SELECT * FROM pools.tags WHERE name = %s AND type = %s",
+                    (tag_name, tag_type)) for tag_name, tag_type in tags]
+            tags = [tag(t, name, id=id) for id, t, name in cursor.fetchall()]
             return tags

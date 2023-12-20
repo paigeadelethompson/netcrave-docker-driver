@@ -1,6 +1,4 @@
-import asyncio
 import stat
-import logging
 import errno
 import pyfuse3
 import pyfuse3.asyncio
@@ -10,11 +8,12 @@ ALong with the volume driver and an HTTP client, this prition is responsible
 for setting up FUSE
 """
 
+
 class fuse_dav_filesystem(LoggingMixIn, Operations):
     def __init__(self):
         super(TestFs, self).__init__()
         self.hello_name = b"message"
-        self.hello_inode = pyfuse3.ROOT_INODE+1
+        self.hello_inode = pyfuse3.ROOT_INODE + 1
         self.hello_data = b"hello world\n"
 
     async def getattr(self, inode, ctx=None):
@@ -75,5 +74,4 @@ class fuse_dav_filesystem(LoggingMixIn, Operations):
 
     async def read(self, fh, off, size):
         assert fh == self.hello_inode
-        return self.hello_data[off:off+size]
-
+        return self.hello_data[off:off + size]

@@ -1,16 +1,18 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
 from chacha20poly1305 import ChaCha20Poly1305
-import json, base64
+import json
+import base64
 from hashlib import sha512
 from time import time
+
 
 class shared_secret_crypto():
     async def nonce(self):
         h = sha512()
         h.update(int(time() // 30))
         return h.digest()
-    
+
     async def __init__(self):
          if os.environ.get("PRESHARED_KEY") == None:
             raise Exception("missing pre-shared key")

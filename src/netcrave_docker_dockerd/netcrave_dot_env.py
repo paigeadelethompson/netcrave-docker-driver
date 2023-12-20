@@ -2,7 +2,8 @@
 
 from dotenv import load_dotenv, dotenv_values
 from collections import OrderedDict
-import logging 
+import logging
+
 
 def get():
     log = logging.getLogger(__name__)
@@ -11,7 +12,8 @@ def get():
     data = dotenv_values("/etc/netcrave/_netcrave.dotenv")
     log.debug("loaded dotenv {}".format(data))
     return data
-    
+
+
 def get_default():
     return list(OrderedDict([
         ('DEBIAN_RELEASE', 'bookworm'),

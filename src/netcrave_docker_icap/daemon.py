@@ -1,10 +1,10 @@
-import random
 import socketserver as SocketServer
-from pyicap import *
+from pyicap import BaseICAPRequestHandler, ICAPServer
 
 
 class ThreadingSimpleServer(SocketServer.ThreadingMixIn, ICAPServer):
     pass
+
 
 class ICAPHandler(BaseICAPRequestHandler):
 
@@ -16,15 +16,16 @@ class ICAPHandler(BaseICAPRequestHandler):
 
     def echo_RESPMOD(self):
         self.no_adaptation_required()
-        
+
     def example_REQMOD(self):
         self.no_adaptation_required()
+
 
 def main():
     port = 1344
     server = ThreadingSimpleServer(('192.0.0.22', port), ICAPHandler)
     try:
-        while 1:
+        while True:
             server.handle_request()
     except KeyboardInterrupt:
         print("Finished")

@@ -1,15 +1,18 @@
 import datetime
 import logging
-import os, sys
+import os
+import sys
 import asyncio
 import argparse
 from netcrave_docker_dockerd.daemon import service
 from netcrave_docker_dockerd.runtime_installer import installer
 
 module_logger = logging.getLogger(__name__)
-module_logger.setLevel(logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
+module_logger.setLevel(
+    logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
 main_logger = logging.getLogger('__main__')
-main_logger.setLevel(logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
+main_logger.setLevel(logging.INFO if not os.environ.get(
+    'DEBUG') else logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 
@@ -28,21 +31,29 @@ try:
             'EXCEPTION': 'bold_red',
         })
 except ImportError:
-    stream_formatter = logging.Formatter('%(levelname)s %(module)s %(funcName)s %(message)s')
+    stream_formatter = logging.Formatter(
+        '%(levelname)s %(module)s %(funcName)s %(message)s')
 console_handler.setFormatter(stream_formatter)
 
 package_timestamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
 if os.path.isdir('logs'):
     file_handler = logging.FileHandler(
-        os.path.join('logs', '{}_{}.log'.format(__name__, package_timestamp)), mode='a')
-    file_handler.setLevel(logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter('%(asctime)s %(levelname)s %(module)s %(name)s %(message)s'))
+        os.path.join(
+            'logs',
+            '{}_{}.log'.format(
+                __name__,
+                package_timestamp)),
+        mode='a')
+    file_handler.setLevel(
+        logging.INFO if not os.environ.get('DEBUG') else logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s %(module)s %(name)s %(message)s'))
     module_logger.addHandler(file_handler)
     main_logger.addHandler(file_handler)
 
 module_logger.addHandler(console_handler)
 main_logger.addHandler(console_handler)
+
 
 def daemon():
     svc = service()
@@ -55,20 +66,21 @@ def daemon():
         except Exception as ex:
             logging.getLogger(__name__).error(ex)
             sys.exit(1)
-    
+
+
 def install():
     try:
         parser = argparse.ArgumentParser(
-            prog = 'netcrave-docker-install',
-            description = 'Install various or all components of netcrave-docker')
+            prog='netcrave-docker-install',
+            description='Install various or all components of netcrave-docker')
         parser.add_argument(
-            '-r', 
+            '-r',
             '--runtimes',
-            action = argparse.BooleanOptionalAction)
+            action=argparse.BooleanOptionalAction)
         parser.add_argument(
-            '-s', 
+            '-s',
             '--systemd',
-            action = argparse.BooleanOptionalAction)
+            action=argparse.BooleanOptionalAction)
         args = parser.parse_args()
         if args.runtimes:
             asyncio.get_event_loop().run_until_complete(installer().install_all())

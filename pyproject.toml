@@ -62,3 +62,11 @@ acmed = "netcrave_docker_acme:main"
 netcrave-docker-environment = "netcrave_docker_dockerd:setup_environment"
 netcrave-docker-daemon = "netcrave_docker_dockerd:daemon"
 netcrave-docker-install = "netcrave_docker_dockerd:install"
+
+[tool.pylint.messages_control]
+disable = [
+    "too-many-ancestors",
+    "too-many-cooks",
+    "too-many-arguments",
+    "too-many-boolean-expressions",
+    "too-many-branches"]

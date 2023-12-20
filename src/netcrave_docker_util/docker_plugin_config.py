@@ -1,8 +1,8 @@
 async def create_configuration(
-    desc, 
-    socket_path, 
-    plugin_type = [ 
-        "docker.volumedriver/1.0", 
+    desc,
+    socket_path,
+    plugin_type=[
+        "docker.volumedriver/1.0",
         "docker.networkdriver/1.0",
         "docker.ipamdriver/1.0",
         "docker.authz/1.0",

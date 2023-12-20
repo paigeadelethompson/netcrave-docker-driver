@@ -7,7 +7,7 @@ import os
 import sys
 from concurrent.futures import Executor, ThreadPoolExecutor
 from tempfile import SpooledTemporaryFile
-from typing import Any, Awaitable, IO, Callable, Dict, Generator, Iterable, List, Optional, Tuple
+from typing import Any, Awaitable, IO, Callable, Dict, Iterable, List, Optional, Tuple
 from wsgiref.util import is_hop_by_hop
 
 from aiohttp.web import (
@@ -33,6 +33,7 @@ WSGIApplication = Callable[[WSGIEnviron, WSGIStartResponse], Iterable[bytes]]
 
 logger = logging.getLogger(__name__)
 
+
 async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -> Response:
     # Response data.
     response_status: Optional[int] = None
@@ -44,18 +45,25 @@ async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -
     app = application()
     try:
         if environ.get("SERVER_NAME") == "unix":
-            request_uri = "/{request}".format(request = environ.get("HTTP_HOST"))
-            callback = next((index.get("callback") for index in app.router if index.get("path") == request_uri))
+            request_uri = "/{request}".format(request=environ.get("HTTP_HOST"))
+            callback = next(
+                (index.get("callback") for index in app.router
+                 if index.get("path") == request_uri))
             response_status, response_body, headers = await callback(environ)
             response_headers = app.headers + headers
             return Response(
-                status = response_status,
-                reason = response_reason,
-                headers = CIMultiDict(response_headers),
-                body = b"".join(response_body))
+                status=response_status,
+                reason=response_reason,
+                headers=CIMultiDict(response_headers),
+                body=b"".join(response_body))
     except Exception as ex:
         log.error(ex)
-        return Response(status = 500, reason = None, headers = app.headers, body = None)
+        return Response(
+            status=500,
+            reason=None,
+            headers=app.headers,
+            body=None)
+
 
 class WSGIHandler:
     """
@@ -68,6 +76,7 @@ class WSGIHandler:
     :param int max_request_body_size: {max_request_body_size}
     :param concurrent.futures.Executor executor: {executor}
     """
+
     def __init__(
         self,
         application: WSGIApplication,
@@ -78,29 +87,36 @@ class WSGIHandler:
         inbuf_overflow: int = 524288,
         max_request_body_size: int = 1073741824,
         # asyncio config.
-        executor: Optional[Executor] = None):
-            assert callable(application), "application should be callable"
-            self._application = application
-            # Handler config.
-            self._url_scheme = url_scheme
-            self._stderr = stderr or sys.stderr
-            assert isinstance(inbuf_overflow, int), "inbuf_overflow should be int"
-            assert inbuf_overflow >= 0, "inbuf_overflow should be >= 0"
-            assert isinstance(max_request_body_size, int), "max_request_body_size should be int"
-            assert max_request_body_size >= 0, "max_request_body_size should be >= 0"
-            if inbuf_overflow < max_request_body_size:
-                self._body_io: Callable[[], IO[bytes]] = partial(SpooledTemporaryFile, max_size=inbuf_overflow)
-            else:
-                # Use BytesIO as an optimization if we'll never overflow to disk.
-                self._body_io = BytesIO
-            self._max_request_body_size = max_request_body_size
-            # asyncio config.
-            self._executor = executor
+            executor: Optional[Executor] = None):
+        assert callable(application), "application should be callable"
+        self._application = application
+        # Handler config.
+        self._url_scheme = url_scheme
+        self._stderr = stderr or sys.stderr
+        assert isinstance(inbuf_overflow, int), "inbuf_overflow should be int"
+        assert inbuf_overflow >= 0, "inbuf_overflow should be >= 0"
+        assert isinstance(max_request_body_size,
+                          int), "max_request_body_size should be int"
+        assert max_request_body_size >= 0, "max_request_body_size should be >= 0"
+        if inbuf_overflow < max_request_body_size:
+            self._body_io: Callable[[], IO[bytes]] = partial(
+                SpooledTemporaryFile, max_size=inbuf_overflow)
+        else:
+            # Use BytesIO as an optimization if we'll never overflow to disk.
+            self._body_io = BytesIO
+        self._max_request_body_size = max_request_body_size
+        # asyncio config.
+        self._executor = executor
 
-    def _get_environ(self, request: Request, body: IO[bytes], content_length: int) -> WSGIEnviron:
+    def _get_environ(
+            self,
+            request: Request,
+            body: IO[bytes],
+            content_length: int) -> WSGIEnviron:
         # Resolve the path info.
         path_info = request.match_info["path_info"]
-        script_name = request.rel_url.path[:len(request.rel_url.path) - len(path_info)]
+        script_name = request.rel_url.path[:len(
+            request.rel_url.path) - len(path_info)]
         # Special case: If the app was mounted on the root, then the script name will
         # currently be set to "/", which is illegal in the WSGI spec. The script name
         # could also end with a slash if the WSGIHandler was mounted as a route
@@ -112,12 +128,15 @@ class WSGIHandler:
             path_info = "/" + path_info
         # Parse the connection info.
         assert request.transport is not None
-        server_name, server_port = parse_sockname(request.transport.get_extra_info("sockname"))
-        remote_addr, remote_port = parse_sockname(request.transport.get_extra_info("peername"))
+        server_name, server_port = parse_sockname(
+            request.transport.get_extra_info("sockname"))
+        remote_addr, remote_port = parse_sockname(
+            request.transport.get_extra_info("peername"))
         # Detect the URL scheme.
         url_scheme = self._url_scheme
         if url_scheme is None:
-            url_scheme = "http" if request.transport.get_extra_info("sslcontext") is None else "https"
+            url_scheme = "http" if request.transport.get_extra_info(
+                "sslcontext") is None else "https"
         # Create the environ.
         environ = {
             "REQUEST_METHOD": request.method,
@@ -149,7 +168,10 @@ class WSGIHandler:
         # Add in additional HTTP headers.
         for header_name in request.headers:
             header_name = header_name.upper()
-            if not(is_hop_by_hop(header_name)) and header_name not in ("CONTENT-LENGTH", "CONTENT-TYPE"):
+            if not (
+                    is_hop_by_hop(header_name)) and header_name not in (
+                    "CONTENT-LENGTH",
+                    "CONTENT-TYPE"):
                 header_value = ",".join(request.headers.getall(header_name))
                 environ["HTTP_" + header_name.replace("-", "_")] = header_value
         # All done!
@@ -185,6 +207,7 @@ class WSGIHandler:
 
     __call__ = handle_request
 
+
 def format_path(path: str) -> str:
     assert not path.endswith("/"), f"{path!r} name should not end with /"
     if path == "":
@@ -192,10 +215,14 @@ def format_path(path: str) -> str:
     assert path.startswith("/"), f"{path!r} name should start with /"
     return path
 
+
 Handler = Callable[[Request], Awaitable[StreamResponse]]
 Middleware = Callable[[Request, Handler], Awaitable[StreamResponse]]
 
-def static_cors_middleware(*, static: Iterable[Tuple[str, str]], static_cors: str) -> Middleware:
+
+def static_cors_middleware(
+        *, static: Iterable[Tuple[str, str]],
+        static_cors: str) -> Middleware:
     @middleware
     async def do_static_cors_middleware(request: Request, handler: Handler) -> StreamResponse:
         response = await handler(request)
@@ -205,6 +232,7 @@ def static_cors_middleware(*, static: Iterable[Tuple[str, str]], static_cors: st
                 break
         return response
     return do_static_cors_middleware
+
 
 async def run_server(
     application: WSGIApplication,
@@ -224,91 +252,98 @@ async def run_server(
     static_cors: Optional[str] = None,
     script_name: str = "",
     shutdown_timeout: float = 60.0,
-    **kwargs: Any):
-        assert threads >= 1, "threads should be >= 1"
-        executor = ThreadPoolExecutor(threads)
-        
-        # Create aiohttp app.
-        app = Application()
-        
-        # Add static routes.
-        static = [(format_path(path), dirname) for path, dirname in static]
-        for path, dirname in static:
-            app.router.add_static(path, dirname)
-        
-        # Add the wsgi application. This has to be last.
-        app.router.add_route(
-            "*",
-            f"{format_path(script_name)}{{path_info:.*}}",
-            WSGIHandler(
-                application,
-                executor=executor,
-                **kwargs
-            ).handle_request,
-        )
-        
-        # Configure middleware.
-        if static_cors:
-            app.middlewares.append(static_cors_middleware(
-                static=static,
-                static_cors=static_cors,
-            ))
-        
-        
-        # Start the app runner.
-        runner = AppRunner(app)
-        await asyncio.create_task(runner.setup())
-        
-        # Set up the server.
-        if unix_socket is not None:
-            site: BaseSite = UnixSite(runner, path=unix_socket, backlog=backlog, shutdown_timeout=shutdown_timeout)
-        else:
-            site = TCPSite(runner, host=host, port=port, backlog=backlog, shutdown_timeout=shutdown_timeout)
-        
-        await asyncio.create_task(site.start())
-        
-        # Set socket permissions.
-        if unix_socket is not None:
-            os.chmod(unix_socket, unix_socket_perms)
-        
-        # Report.
-        assert site._server is not None
-        assert isinstance(site._server, Server)
-        assert site._server.sockets is not None
-        
-        server_uri = " ".join(
-            "http://{}:{}".format(*parse_sockname(socket.getsockname()))
-            for socket
-            in site._server.sockets)
-        
-        logger.info("Serving on %s", server_uri)
-        
-        try:
-            while True:
-                await asyncio.sleep(1)
-        finally:
-            # Clean up unix sockets.
-            for socket in site._server.sockets:
-                sock_host, sock_port = parse_sockname(socket.getsockname())
-                if sock_host == "unix":
-                    os.unlink(sock_port)
-            
-            # Close the server.
-            logger.debug("Shutting down server on %s", server_uri)
-            
-            await asyncio.create_task(site.stop())
-            
-            # Shut down app.
-            logger.debug("Shutting down app on %s", server_uri)
-            
-            await asyncio.create_task(runner.cleanup())
-            
-            # Shut down executor.
-            
-            logger.debug("Shutting down executor on %s", server_uri)
-            executor.shutdown()
-            
-            logger.info("Stopped serving on %s", server_uri)
+        **kwargs: Any):
+    assert threads >= 1, "threads should be >= 1"
+    executor = ThreadPoolExecutor(threads)
+
+    # Create aiohttp app.
+    app = Application()
+
+    # Add static routes.
+    static = [(format_path(path), dirname) for path, dirname in static]
+    for path, dirname in static:
+        app.router.add_static(path, dirname)
+
+    # Add the wsgi application. This has to be last.
+    app.router.add_route(
+        "*",
+        f"{format_path(script_name)}{{path_info:.*}}",
+        WSGIHandler(
+            application,
+            executor=executor,
+            **kwargs
+        ).handle_request,
+    )
+
+    # Configure middleware.
+    if static_cors:
+        app.middlewares.append(static_cors_middleware(
+            static=static,
+            static_cors=static_cors,
+        ))
+
+    # Start the app runner.
+    runner = AppRunner(app)
+    await asyncio.create_task(runner.setup())
+
+    # Set up the server.
+    if unix_socket is not None:
+        site: BaseSite = UnixSite(
+            runner, path=unix_socket, backlog=backlog,
+            shutdown_timeout=shutdown_timeout)
+    else:
+        site = TCPSite(
+            runner,
+            host=host,
+            port=port,
+            backlog=backlog,
+            shutdown_timeout=shutdown_timeout)
+
+    await asyncio.create_task(site.start())
+
+    # Set socket permissions.
+    if unix_socket is not None:
+        os.chmod(unix_socket, unix_socket_perms)
+
+    # Report.
+    assert site._server is not None
+    assert isinstance(site._server, Server)
+    assert site._server.sockets is not None
+
+    server_uri = " ".join(
+        "http://{}:{}".format(*parse_sockname(socket.getsockname()))
+        for socket
+        in site._server.sockets)
+
+    logger.info("Serving on %s", server_uri)
+
+    try:
+        while True:
+            await asyncio.sleep(1)
+    finally:
+        # Clean up unix sockets.
+        for socket in site._server.sockets:
+            sock_host, sock_port = parse_sockname(socket.getsockname())
+            if sock_host == "unix":
+                os.unlink(sock_port)
+
+        # Close the server.
+        logger.debug("Shutting down server on %s", server_uri)
+
+        await asyncio.create_task(site.stop())
+
+        # Shut down app.
+        logger.debug("Shutting down app on %s", server_uri)
+
+        await asyncio.create_task(runner.cleanup())
+
+        # Shut down executor.
+
+        logger.debug("Shutting down executor on %s", server_uri)
+        executor.shutdown()
+
+        logger.info("Stopped serving on %s", server_uri)
+
 
 async def serve(application: WSGIApplication, **kwargs: Any) -> None:  # pragma: no cover
     """
