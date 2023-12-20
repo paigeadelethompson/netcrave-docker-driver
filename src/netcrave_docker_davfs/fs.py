@@ -1,7 +1,6 @@
 import os
 import errno
 import pyfuse3
-import pyfuse3_asyncio
 
 
 class fuse_dav_filesystem():
