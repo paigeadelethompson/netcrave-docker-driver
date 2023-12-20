@@ -1,8 +1,8 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
-from netcrave_docker_ipam.db import ipam_database_client
-from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
 import uuid
+from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
+from netcrave_docker_ipam.db import ipam_database_client
 from netcrave_docker_ipam.label import scope_label_masks, interface_type
 
 
@@ -91,9 +91,9 @@ class scope():
     def network_interface_kind(self):
         if self.prefix_length() == 31 or self.prefix_length() == 127:
             return interface_type.veth
-        elif self.network_object().network_address == Ipv4Address(
+        elif self.network_object().network_address == IPv4Address(
             "169.254.169.254") or self.network_object(
-        ).network_address == Ipv6Address("fe80:ffff:ffff:ffff:ffff:ffff:ffff:ffff"):
+        ).network_address == IPv6Address("fe80:ffff:ffff:ffff:ffff:ffff:ffff:ffff"):
             return interface_type.dummy
         elif self.prefix_length() == 32 or self.prefix_length() == 128:
             return interface_type.veth
@@ -188,28 +188,17 @@ class scope():
                     self.prefix_length().to_bytes(),
                     self.allocated()))
 
-            self.created, self.modified = c.fetchone()
+            self._created, self._modified = c.fetchone()
             self._save_scope_tag_fk(cursor)
 
 
 def get_scopes_by_tags(tags):
-    with ipam_database_client().database() as conn:
-        cursor = conn.cursor()
-        with conn.transaction():
-            err = [cursor.execute("""
-            SELECT s.id, s.prefix_length, s.parent, s.created, s.modified, s.allocated from scope_tags f
-            JOIN scopes s on f.scope = s.id
-            WHERE f.tag = %s
-            """, [index.id()]) for index in tags]
-            return [scope(
-                id=id,
-                prefix_length=prefix_length,
-                parent=parent,
-                created=created,
-                allocated=allocated,
-                modified=modified) for id,
-                prefix_length,
-                parent,
-                created,
-                modified,
-                allocated in cursor.fetchall()]
+    conn = ipam_database_client().database()
+    cursor = conn.cursor()
+    with conn.txn():
+        err = [cursor.execute("""
+        SELECT s.id, s.prefix_length, s.parent, s.created, s.modified, s.allocated from scope_tags f
+        JOIN scopes s on f.scope = s.id
+        WHERE f.tag = %s
+        """, [index.id()]) for index in tags]
+    raise NotImplementedError()

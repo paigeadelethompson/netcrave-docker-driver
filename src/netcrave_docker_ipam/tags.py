@@ -68,14 +68,16 @@ class tag():
             c.execute(query, (self.name(), self.tag_type()))
             self._id, _ = c.fetchone()
 
+def get_ipam_scope_tags():
+    raise NotImplementedError()
 
 def load_tags_from_database(tags):
-    with ipam_database_client().database() as conn:
-        cursor = conn.cursor()
-        with conn.transaction():
-            err = [
-                cursor.execute(
-                    "SELECT * FROM pools.tags WHERE name = %s AND type = %s",
-                    (tag_name, tag_type)) for tag_name, tag_type in tags]
-            tags = [tag(t, name, id=id) for id, t, name in cursor.fetchall()]
-            return tags
+    conn = ipam_database_client().database()
+    cursor = conn.cursor()
+    with conn.txn():
+        err = [
+            cursor.execute(
+                "SELECT * FROM pools.tags WHERE name = %s AND type = %s",
+                (tag_name, tag_type)) for tag_name, tag_type in tags]
+        tags = [tag(t, name, id=id) for id, t, name in cursor.fetchall()]
+        return tags

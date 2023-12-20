@@ -18,7 +18,7 @@ from netcrave_docker_util.cmd import cmd_async
 import aiofiles
 
 
-async def get_NDB():
+async def get_NDB() -> NDB:
     db = NDB(
         db_provider='sqlite3',
         db_spec='/srv/netcrave/_netcrave/NDB/network.sqlite3',

@@ -29,8 +29,8 @@ class unknown(Exception):
     def __str__(self):
         return (
             """{file} {line} {name} {type} {message}""".format(
-                filename=self.details.get("filename"),
-                line=self.details.get("lineno"),
-                name=self.details.get("name"),
-                type=self.details.get("type"),
-                message=self.details.get("message")))
+                filename=self._details.get("filename"),
+                line=self._details.get("lineno"),
+                name=self._details.get("name"),
+                type=self._details.get("type"),
+                message=self._details.get("message")))

@@ -145,7 +145,7 @@ class service():
                         tg.create_task(self._wait_for_docker_network_driver()))
 
             except asyncio.CancelledError as ex:
-                self.log.critical("events cancelled {}", format(ex))
+                self.log.critical("events cancelled {}".format(ex))
                 raise
             except Exception as ex:
                 self.log.critical(
@@ -177,7 +177,7 @@ class service():
             async with open("/etc/systemd/system/netcrave-dockerd-daemon.service", 'w') as file:
                 file.write(systemd_script)
 
-            result = await cmd("/usr/bin/env", "systemctl", "daemon-reload")
+            result = await cmd_async("/usr/bin/env", "systemctl", "daemon-reload")
 
             if result.returncode != 0:
                 Path("/etc/systemd/system/netcrave-dockerd-daemon.service").unlink()

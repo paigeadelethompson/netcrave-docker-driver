@@ -1,14 +1,19 @@
 import hashlib
-from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address
+import json
+from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
+from hashlib import sha512
 from netcrave_docker_util.exception import unknown
 from netcrave_docker_util.http_handler import handler
-import json
-
+from netcrave_docker_dockerd.setup_environment import get_NDB
 
 class internal_driver(handler):
     def __init__(self):
         super().__init__()
-        self.add_route("POST", "/Plugin.Activate", self.plugin_activate)
+        self._ndb = get_NDB()
+        self.add_route(
+            "POST", 
+            "/Plugin.Activate", 
+            self.plugin_activate)
         self.add_route(
             "POST",
             "/NetworkDriver.GetCapabilities",
@@ -56,32 +61,32 @@ class internal_driver(handler):
         return (
             200,
             json.dumps({"Implements": ["NetworkDriver"]}),
-            headers)
+            [])
 
     async def plugin_get_capabilities(self, request):
         return (
             200,
             json.dumps({"Scope": "local"}),
-            headers)
+            [])
 
     async def plugin_create_network(self, request):
 
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])
 
     async def plugin_delete_network(self, request):
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])
 
     async def plugin_create_endpoint(self, request):
         data = json.loads(request.data)
         interface = data.get("Interface")
 
-        sha = hashlib.sha512()
+        sha = sha512()
         sha.update("{endpoint_id}{network_id}".format(
             endpoint_id=data.get("EndpointID"),
             network_id=data.get("NetworkID")))
@@ -90,22 +95,22 @@ class internal_driver(handler):
             endpoint_id=data.get("EndpointID"),
             network_id=data.get("NetworkID")))
 
-        v4 = Ipv4Network(interface.get("Address"))
-        v6 = Ipv6Network(interface.get("AddressV6"))
+        v4 = IPv4Network(interface.get("Address"))
+        v6 = IPv6Network(interface.get("AddressV6"))
 
         candidates = []
 
-        for index in ndb.addresses.dump():
-            current = ndb.addresses.get(index)
+        for index in self._ndb.addresses.dump():
+            current = self._ndb.addresses.get(index)
             if isinstance(ip_address(current),
                           IPv6Address) and IPv6Address(current).is_link_local:
                 continue
             elif isinstance(ip_address(current), IPv6Address):
                 if IPv6Network(ip_address(current), 128).subnet_of(v6):
-                    cadidates.append(index)
+                    candidates.append(index)
             elif isinstance(ip_address(current), IPv4Address):
                 if IPv4Network(ip_address(current), 32).subnet_of(v4):
-                    cadidates.append(index)
+                    candidates.append(index)
 
         if len(set([index.get("index") for index in candidates])) != 1:
             raise unknown(
@@ -114,10 +119,9 @@ class internal_driver(handler):
         v4_out, v6_out = sorted(candidates, lambda index: index.get("family"))
 
         selected_interface = next(
-            (ndb.interfaces.get(index).get("address")
-             for index in ndb.interfaces.dump()
-             if ndb.interfaces.get(index).get("ifname") == selected_interface.get(
-                 "label")))
+            (self._ndb.interfaces.get(index).get("address")
+             for index in self._ndb.interfaces.dump()
+             if self._ndb.interfaces.get(index).get("ifname") == index.get("label")))
 
         selected_interface.set("ifalias", sha.hexdigest())
         selected.interface.commit()
@@ -132,7 +136,7 @@ class internal_driver(handler):
                         "MacAddress": selected_interface.get("address"),
                     }
             }),
-            headers)
+            [])
 
     async def plugin_join(self, request):
 
@@ -143,32 +147,34 @@ class internal_driver(handler):
                     'SrcName': None,
                     'DstPrefix': 'eth',
                     'Gateway': None}}),
-                headers))
+                []))
 
     async def plugin_program_external_connectivity(self, request):
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])
 
     async def plugin_endpoint_oper_info(self, request):
         data = json.loads(request.data)
         endpoint_id = data.get("EndpointID")
         network_id = data.get("NetworkID")
 
+        sha = sha512()
+
         sha.update("{endpoint_id}{network_id}".format(
             endpoint_id=data.get("EndpointID"),
             network_id=data.get("NetworkID")))
 
-        oper = next((ndb.interfaces.get(index)
-                    for index in ndb.interfaces.dump()
+        oper = next((self._ndb.interfaces.get(index)
+                    for index in self._ndb.interfaces.dump()
                     if index["iflias"] == sha.hexdigest()))
 
-        net = next((ndb.addresses.get(index)
-                    for index in ndb.addresses.dump()
-                    if ndb.addresses.get(index).get("label") == oper.get("ifname")))
+        net = next((self._ndb.addresses.get(index)
+                    for index in self._ndb.addresses.dump()
+                    if self._ndb.addresses.get(index).get("label") == oper.get("ifname")))
 
-        network = Ipv4Network(
+        network = IPv4Network(
             "{addr}/32".format(
                 addr=net.get(
                     "address"))).supernet(
@@ -180,34 +186,34 @@ class internal_driver(handler):
                 "Value": {
                     endpoint_id: oper.get("ifname"),
                     network_id: str(network)}}),
-            headers)
+            [])
 
     async def plugin_delete_endpoint(self, request):
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])
 
     async def plugin_leave(self, request):
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])
 
     async def plugin_discover_new(self, request):
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])
 
     async def plugin_discover_delete(self, request):
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])
 
     async def plugin_revoke_external_connectivity(self, request):
         return (
             200,
             json.dumps(dict()),
-            headers)
+            [])

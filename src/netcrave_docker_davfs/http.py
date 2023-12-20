@@ -13,29 +13,29 @@ class filesystem_driver(handler):
         self.add_route("POST", '/VolumeDriver.List', self.list)
         self.add_route("POST", '/VolumeDriver.Get', self.get)
 
-    def activate(request):
+    def activate(self, request):
         raise NotImplementedError()
 
-    def create(request):
+    def create(self, request):
         raise NotImplementedError()
 
-    def remove(request):
+    def remove(self, request):
         raise NotImplementedError()
 
-    def path(request):
+    def path(self, request):
         raise NotImplementedError()
 
-    def mount(request):
+    def mount(self, request):
         raise NotImplementedError()
 
-    def unmount(request):
+    def unmount(self, request):
         raise NotImplementedError()
 
-    def list(request):
+    def list(self, request):
         raise NotImplementedError()
 
-    def get(request):
+    def get(self, request):
         raise NotImplementedError()
 
-    def capabilities(request):
+    def capabilities(self, request):
         raise NotImplementedError()

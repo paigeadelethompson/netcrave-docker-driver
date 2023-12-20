@@ -1,9 +1,10 @@
+import os
 import errno
 import pyfuse3
-import pyfuse3.asyncio
+import pyfuse3_asyncio
 
 
-class fuse_dav_filesystem(LoggingMixIn, Operations):
+class fuse_dav_filesystem():
     def __init__(self):
         raise NotImplementedError()
 

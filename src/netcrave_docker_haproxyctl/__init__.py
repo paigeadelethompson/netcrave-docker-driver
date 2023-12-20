@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import sys
 from netcrave_docker_haproxyctl.daemon import haproxy_ctl
 from netcrave_docker_util.log import configure_logger_for_module
 

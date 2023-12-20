@@ -140,7 +140,7 @@ class schema():
                             which="ipv4_prefix_length"):
                         yield index
 
-                to_process = to_process + self.parse_nested_scopes_v4(
+                to_process = to_process + self.parse_nested_scopes(
                     current_deserialized, current, "ipv4_network")
 
             if current.get("ipv6_network"):
@@ -158,7 +158,7 @@ class schema():
                             which="ipv6_prefix_length"):
                         yield index
 
-                to_process = to_process + self.parse_nested_scopes_v6(
+                to_process = to_process + self.parse_nested_scopes(
                     current_deserialized, current, "ipv6_network")
 
     def parse_current_scope(self, current, which="ipv4"):
@@ -228,6 +228,6 @@ class schema():
                             + instantiate_tags(
                                 scope_template.get("tags"), tag_type.ingress),
                             vrf_id=(scope_template.get("vrf_id") is not None
-                                    and scope_template.get(vrf_id)
+                                    and scope_template.get("vrf_id")
                                     or self.default_vrf_id()),
                             parent=parent)

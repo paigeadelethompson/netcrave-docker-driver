@@ -20,7 +20,7 @@ class crypto():
         """Create certificate signing request."""
         if pkey_pem is None:
             pkey = OpenSSL.crypto.PKey()
-            pkey.generate_key(OpenSSL.crypto.TYPE_RSA, CERT_PKEY_BITS)
+            pkey.generate_key(OpenSSL.crypto.TYPE_RSA, 2048)
             pkey_pem = OpenSSL.crypto.dump_privatekey(
                 OpenSSL.crypto.FILETYPE_PEM, pkey)
 

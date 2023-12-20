@@ -1,7 +1,7 @@
 from fs.memoryfs import MemoryFS
+from singleton_decorator import singleton
 
-
-@Singleton
+@singleton
 class memory_filesystem_service():
     def new_filesystem(self, id):
         if self._state.get(id) is not None:

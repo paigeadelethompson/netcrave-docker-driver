@@ -15,14 +15,17 @@ class handler():
             {"method": method, "path": path, "callback": callback})
 
     async def health_check(self, request):
-        return (204, None, headers)
+        return (204, None, self.headers)
 
+    @staticmethod
     async def http_listener(cls, bind_host, port, sem=asyncio.Lock()):
         raise NotImplementedError()
 
+    @staticmethod
     async def https_listener(cls, bind_host, port, cert_path, key_path, ca_cert_path, sem=asyncio.Lock()):
         raise NotImplementedError()
 
+    @staticmethod
     async def internal_network_driver(cls, path, sock_name, sem=asyncio.Lock()):
         await sem.acquire()
         sem.release()

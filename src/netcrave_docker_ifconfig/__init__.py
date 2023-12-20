@@ -12,7 +12,7 @@ module_logger, main_logger, console_handler = configure_logger_for_module(
 def daemon():
     try:
         asyncio.get_event_loop().run_until_complete(
-            filesystem_driver.internal_network_driver(
+            network_driver.internal_network_driver(
                 cls=network_driver,
                 path="/srv/netcrave/docker/state/plugins/",
                 sock_name="ifcfg.sock"))

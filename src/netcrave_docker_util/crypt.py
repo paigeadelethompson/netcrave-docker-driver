@@ -1,5 +1,6 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
+import os
 from chacha20poly1305 import ChaCha20Poly1305
 import json
 import base64
@@ -22,7 +23,7 @@ class shared_secret_crypto():
     async def encrypt(self, data):
         serialized = json.dumps(data)
         encrypted = self._cip.encrypt(self.nonce(), serialized)
-        serialized_encrypted = base64.encode(encrypted, 'ascii')
+        serialized_encrypted = base64.encodebytes(encrypted)
         return serialized_encrypted
 
     async def decrypt(self, data):

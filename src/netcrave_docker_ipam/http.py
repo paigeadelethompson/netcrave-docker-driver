@@ -4,7 +4,6 @@ from netcrave_docker_util.http_handler import handler
 class ipam_driver(handler):
     def __init__(self):
         super().__init__()
-        self.add_route("POST", '/Plugin.Activate', self.plugin_activate)
         self.add_route("POST", '/Plugin.Activate', self.Activate)
         self.add_route(
             "POST",

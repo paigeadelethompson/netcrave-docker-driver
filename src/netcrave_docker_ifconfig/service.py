@@ -1,14 +1,15 @@
 from pyroute2 import IPRoute
 from pyroute2 import NDB
 from pyroute2 import NetNS
+from ipaddress import IPv6Network
 from netcrave_docker_ipam.scope import scope
 from netcrave_docker_ipam.label import interface_type
-from netcrave_docker_ipam.tags import tag
-
+from netcrave_docker_ipam.tags import tag, get_ipam_scope_tags
+from netcrave_docker_dockerd.setup_environment import get_NDB
 
 class service():
     def __init__(self):
-        self._ndb = NDB()
+        self._ndb = get_NDB()
 
     def ndb(self):
         return self._ndb
