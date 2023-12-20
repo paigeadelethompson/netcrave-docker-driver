@@ -34,45 +34,28 @@ WSGIApplication = Callable[[WSGIEnviron, WSGIStartResponse], Iterable[bytes]]
 
 logger = logging.getLogger(__name__)
 
-def _run_application(application: WSGIApplication, environ: WSGIEnviron) -> Response:
+async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -> Response:
     # Response data.
     response_status: Optional[int] = None
     response_reason: Optional[str] = None
     response_headers: Optional[WSGIHeaders] = None
     response_body: List[bytes] = []
-    # Simple start_response callable.
-    def start_response(status: str, headers: WSGIHeaders, exc_info: Optional[Exception] = None) -> WSGIAppendResponse:
-        nonlocal response_status, response_reason, response_headers, response_body
-        status_code, reason = status.split(None, 1)
-        status_code = int(status_code)
-        # Check the headers.
-        if __debug__:
-            for header_name, header_value in headers:
-                assert not is_hop_by_hop(header_name), f"hop-by-hop headers are forbidden: {header_name}"
-        # Start the response.
-        response_status = status_code
-        response_reason = reason
-        response_headers = headers
-        del response_body[:]
-        return response_body.append
+    log = logging.getLogger(__name__)
     # Run the application.
-    # body_iterable = application(environ, start_response)
-    # try:
-    #  response_body.extend(body_iterable)
-    assert (
-        response_status is not None and response_reason is not None and response_headers is not None
-    ), "application did not call start_response()"
-    return Response(
-        status=response_status,
-        reason=response_reason,
-        headers=CIMultiDict(response_headers),
-        body=b"".join(response_body),
-    )
-    
-    # finally:
-        # Close the body.
-        # if hasattr(body_iterable, "close"):
-        #    body_iterable.close()  # type: ignore
+    app = application()
+    try:
+        if environ.get("SERVER_NAME") == "unix":
+            request_uri = "/{request}".format(request = environ.get("HTTP_HOST"))
+            callback = next((index.get("callback") for index in app.router if index.get("path") == request_uri))
+            response_status, response_body, headers = await callback()
+            response_headers = app.headers + headers
+            return Response(
+                status = response_status,
+                reason = response_reason,
+                headers = CIMultiDict(response_headers),
+                body = b"".join(response_body))
+    except Exception as ex:
+        log.error(ex)
 
 class WSGIHandler:
     """
@@ -85,7 +68,6 @@ class WSGIHandler:
     :param int max_request_body_size: {max_request_body_size}
     :param concurrent.futures.Executor executor: {executor}
     """
-
     def __init__(
         self,
         application: WSGIApplication,
@@ -196,12 +178,10 @@ class WSGIHandler:
             body.seek(0)
             # Get the environ.
             environ = self._get_environ(request, body, content_length)
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._executor,
-                _run_application,
-                self._application,
-                environ)
+            return await asyncio.create_task(
+                _run_application(
+                    self._application,
+                    environ))
 
     __call__ = handle_request
 
