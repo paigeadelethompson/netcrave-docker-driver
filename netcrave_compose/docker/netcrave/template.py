@@ -2,7 +2,6 @@
 
 from dotenv import load_dotenv
 import os
-import sys
 from pathlib import Path
 import jinja2
 from itertools import islice
