@@ -252,6 +252,5 @@ async def setup_compose():
 
 async def setup_environment():
     await create_configuration()
-    ca = await ez_rsa().netcrave_certificate()
+    _ = await ez_rsa().netcrave_certificate()
     await create_networks()
-    return (ca)

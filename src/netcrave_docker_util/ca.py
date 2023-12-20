@@ -1,35 +1,28 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
+import datetime
+import uuid
+import logging
+import aiofiles
+from pathlib import Path
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-import datetime
-import uuid
-import logging
-from pathlib import Path
+from singleton_decorator import singleton
 
-
+@singleton
 class ez_rsa():
-    def __init__(self):
-        pass
-
-    def get_netcrave_certificate(self):
-        key = serialization.load_pem_private_key(
-            open("/etc/netcrave/ssl/_netcrave.key").read(),
-            password=None)
-
-        cert = x509.load_pem_x509_certificate(
-            open("/etc/netcrave/ssl/_netcrave.pem").read(),
-            default_backend())
-
-        return key, cert
-
+    async def get_netcrave_certificate(self):
+        return await self.load_key_and_certificate("/etc/netcrave/ssl/_netcrave.key",
+                                                  "/etc/netcrave/ssl/_netcrave.pem")
+    
     async def netcrave_certificate(self):
         if not (Path("/etc/netcrave/ssl/ca.key").exists()
                 and not Path("/etc/netcrave/ssl/ca.pem").exists()):
             await self.create_default_ca()
+            
         if not (Path("/etc/netcrave/ssl/_netcrave.key").exists()
                 and not Path("/etc/netcrave/ssl/_netcrave.pem").exists()):
             return await self.create_server_certificate(
@@ -43,21 +36,38 @@ class ez_rsa():
         else:
             return self
 
+    async def load_key_and_certificate(self, key_path, cert_path): 
+        async with aiofiles.open(key_path, "rb") as key_data:
+            root_key = serialization.load_pem_private_key(
+                await key_data.read(),
+                password=None,
+                backend=default_backend())
+            async with aiofiles.open(cert_path, "rb") as cert_data:
+                root_cert = x509.load_pem_x509_certificate(
+                    cert_data.read(),
+                    default_backend())
+                return root_key, root_cert
+            
+    async def save_key_and_certificate(self, key_dest, cert_dest, key, cert):
+        async with aiofiles.open(key_dest, "wb") as key_file:
+            await key_file.write(key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()))
+            async with aiofiles.open(cert_dest, "wb") as cert_file:
+                await cert_file.write(cert.public_bytes(
+                encoding=serialization.Encoding.PEM))
+
     async def create_server_certificate(self, domain, country, state, locality, org, key_file_dest, cert_file_dest):
         log = logging.getLogger(__name__)
+        
         if Path(key_file_dest).exists() or Path(cert_file_dest).exists():
             log.info("netcrave-docker certificate already exists, not creating")
             return self
-
-        root_key = serialization.load_pem_private_key(
-            open("/etc/netcrave/ssl/ca.key", 'rb').read(),
-            password=None,
-            backend=default_backend())
-
-        root_cert = x509.load_pem_x509_certificate(
-            open("/etc/netcrave/ssl/ca.pem", 'rb').read(),
-            default_backend())
-
+        
+        root_key, root_cert = await self.load_key_and_certificate("/etc/netcrave/ssl/ca.key", 
+                                                                  "/etc/netcrave/ssl/ca.pem")
+        
         cert_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048,
@@ -82,16 +92,7 @@ class ez_rsa():
                 critical=False)
             .sign(root_key, hashes.SHA512(), default_backend()))
 
-        with open(key_file_dest, "wb") as f:
-            f.write(cert_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()))
-
-        with open(cert_file_dest, "wb") as f:
-            f.write(cert.public_bytes(
-                encoding=serialization.Encoding.PEM))
-
+        await self.save_key_and_certificate(key_file_dest, cert_file_dest, cert_key, cert)
         return self
 
     async def create_default_ca(self):
@@ -127,14 +128,8 @@ class ez_rsa():
             private_key=private_key, algorithm=hashes.SHA512(),
             backend=default_backend())
 
-        with open("/etc/netcrave/ssl/ca.key", "wb") as f:
-            f.write(private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()))
-
-        with open("/etc/netcrave/ssl/ca.pem", "wb") as f:
-            f.write(certificate.public_bytes(
-                encoding=serialization.Encoding.PEM))
-
+        await self.save_key_and_certificate("/etc/netcrave/ssl/ca.key", 
+                                            "/etc/netcrave/ssl/ca.pem", 
+                                            private_key,
+                                            certificate)
         return self

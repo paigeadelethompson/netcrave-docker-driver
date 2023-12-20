@@ -18,7 +18,6 @@ class service():
     def __init__(self):
         self.stdoutHandler = logging.StreamHandler(stream=sys.stdout)
         signal.signal(signal.SIGINT, self.sigint)
-        self.log = logging.getLogger(__name__)
         self._docker_dependency = asyncio.Lock()
         self._docker_network_driver_dependency = asyncio.Lock()
 
@@ -44,18 +43,20 @@ class service():
             "/run/netcrave/_netcrave/sock.containerd")
 
     async def _wait_for_docker_daemon(self):
+        log = logging.getLogger(__name__)
         while True:
             try:
                 docker.client.DockerClient(
                     "unix:///run/netcrave/_netcrave/sock.dockerd")
-                self.log.info("docker is online, releasing dependency lock")
+                log.info("docker is online, releasing dependency lock")
                 self._docker_dependency.release()
                 return
             except DockerException:
-                self.log.warn("waiting for docker daemon to come online")
+                log.warn("waiting for docker daemon to come online")
             await asyncio.sleep(1)
 
     async def _wait_for_docker_network_driver(self):
+        log = logging.getLogger(__name__)
         while True:
             try:
                 pass
@@ -64,10 +65,11 @@ class service():
                 # self._docker_dependency.release()
                 # return
             except DockerException:
-                self.log.warn("waiting for docker daemon to come online")
+                log.warn("waiting for docker daemon to come online")
             await asyncio.sleep(1)
 
     async def _dockerd_post_start(self):
+        log = logging.getLogger(__name__)
         await self._docker_network_driver_dependency.acquire()
         self._docker_network_driver_dependency.release()
         self._proj = await setup_compose()
@@ -105,10 +107,11 @@ class service():
                     "frr-netcrave",
                     "frr-docker"], start=False)
         except Exception as ex:
-            self.log.error("compose failed {}".format(ex))
+            log.error("compose failed {}".format(ex))
 
     def cleanup(self):
-        self.log.critical("please wait: attempting to shutdown cleanly...")
+        log = logging.getLogger(__name__)
+        log.critical("please wait: attempting to shutdown cleanly...")
         subprocess.run(["umount", "/mnt/_netcrave/docker-compose.yml"])
         subprocess.run(["umount", "/mnt/_netcrave/.env"])
         subprocess.run(["umount", "/mnt/_netcrave/docker"])
@@ -125,12 +128,13 @@ class service():
         [index.cancel() for index in asyncio.all_tasks()]
 
     async def start(self):
+        log = logging.getLogger(__name__)
         while True:
             try:
-                self.log.debug("starting daemon, debugging is enabled")
-                self._ca = await setup_environment()
-                self.log.info("configuration initialized and loaded")
-                self.log.info("starting daemons")
+                log.debug("starting daemon, debugging is enabled")
+                await setup_environment()
+                log.info("configuration initialized and loaded")
+                log.info("starting daemons")
                 async with asyncio.TaskGroup() as tg:
                     await self._docker_dependency.acquire()
                     await asyncio.gather(
@@ -142,11 +146,11 @@ class service():
                         tg.create_task(self._wait_for_docker_network_driver()))
 
             except asyncio.CancelledError as ex:
-                self.log.critical("events cancelled {}".format(ex))
+                log.critical("events cancelled {}".format(ex))
                 raise
             except Exception as ex:
-                self.log.critical(
-                    "Caught non-recoverable error in early startup {ex} {stacktrace}".format(
+                log.critical(
+                    "Caught non-recoverable error {ex} {stacktrace}".format(
                         ex=ex, stacktrace="".join(
                             traceback.format_exception(ex))))
                 [index.cancel() for index in asyncio.all_tasks()]
