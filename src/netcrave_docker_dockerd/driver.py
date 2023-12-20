@@ -1,15 +1,16 @@
+# IAmPaigeAT (paige@paige.bio) 2023
+
 import json
 from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
 from hashlib import sha512
 from netcrave_docker_util.exception import unknown
 from netcrave_docker_util.http_handler import handler
-from netcrave_docker_dockerd.setup_environment import get_NDB
+from netcrave_docker_util.ndb import network_database
 
 
 class internal_driver(handler):
     def __init__(self):
         super().__init__()
-        self._ndb = get_NDB()
         self.add_route(
             "POST",
             "/Plugin.Activate",
@@ -83,61 +84,62 @@ class internal_driver(handler):
             [])
 
     async def plugin_create_endpoint(self, request):
-        data = json.loads(request.data)
-        interface = data.get("Interface")
+        async with network_database() as ndb:
+            data = json.loads(request.data)
+            interface = data.get("Interface")
 
-        sha = sha512()
-        sha.update("{endpoint_id}{network_id}".format(
-            endpoint_id=data.get("EndpointID"),
-            network_id=data.get("NetworkID")))
+            sha = sha512()
+            sha.update("{endpoint_id}{network_id}".format(
+                endpoint_id=data.get("EndpointID"),
+                network_id=data.get("NetworkID")))
 
-        sha.update("{endpoint_id}{network_id}".format(
-            endpoint_id=data.get("EndpointID"),
-            network_id=data.get("NetworkID")))
+            sha.update("{endpoint_id}{network_id}".format(
+                endpoint_id=data.get("EndpointID"),
+                network_id=data.get("NetworkID")))
 
-        v4 = IPv4Network(interface.get("Address"))
-        v6 = IPv6Network(interface.get("AddressV6"))
+            v4 = IPv4Network(interface.get("Address"))
+            v6 = IPv6Network(interface.get("AddressV6"))
 
-        candidates = []
+            candidates = []
 
-        for index in self._ndb.addresses.dump():
-            current = self._ndb.addresses.get(index)
-            if isinstance(ip_address(current),
-                          IPv6Address) and IPv6Address(current).is_link_local:
-                continue
-            elif isinstance(ip_address(current), IPv6Address):
-                if IPv6Network(ip_address(current), 128).subnet_of(v6):
-                    candidates.append(index)
-            elif isinstance(ip_address(current), IPv4Address):
-                if IPv4Network(ip_address(current), 32).subnet_of(v4):
-                    candidates.append(index)
+            for index in ndb.addresses.dump():
+                current = ndb.addresses.get(index)
+                if isinstance(ip_address(current),
+                            IPv6Address) and IPv6Address(current).is_link_local:
+                    continue
+                elif isinstance(ip_address(current), IPv6Address):
+                    if IPv6Network(ip_address(current), 128).subnet_of(v6):
+                        candidates.append(index)
+                elif isinstance(ip_address(current), IPv4Address):
+                    if IPv4Network(ip_address(current), 32).subnet_of(v4):
+                        candidates.append(index)
 
-        if len(set([index.get("index") for index in candidates])) != 1:
-            raise unknown(
-                "requested /128 address is a subnet of more than one allocated /30 network")
+            if len(set([index.get("index") for index in candidates])) != 1:
+                raise unknown(
+                    "requested /128 address is a subnet of more than one allocated /30 network")
 
-        v4_out, v6_out = sorted(candidates, lambda index: index.get("family"))
+            v4_out, v6_out = sorted(candidates, lambda index: index.get("family"))
 
-        selected_interface = next(
-            (self._ndb.interfaces.get(index).get("address")
-             for index in self._ndb.interfaces.dump()
-             if self._ndb.interfaces.get(index).get("ifname") == index.get(
-                 "label")))
+            selected_interface = next(
+                (ndb.interfaces.get(index).get("address")
+                for index in ndb.interfaces.dump()
+                if ndb.interfaces.get(index).get("ifname") == index.get(
+                    "label")))
 
-        selected_interface.set("ifalias", sha.hexdigest())
-        selected_interface.commit()
+            selected_interface.set("ifalias", sha.hexdigest())
+            selected_interface.commit()
 
-        return (
-            200,
-            json.dumps({
-                "Interface":
-                    {
-                        "Address": str(IPv4Address(v4_out)),
-                        "AddressV6": str(IPv6Address(v6_out)),
-                        "MacAddress": selected_interface.get("address"),
-                    }
-            }),
-            [])
+            return (
+                200,
+                json.dumps({
+                    "Interface":
+                        {
+                            "Address": str(IPv4Address(v4_out)),
+                            "AddressV6": str(IPv6Address(v6_out)),
+                            "MacAddress": selected_interface.get("address"),
+                        }
+                }),
+                [])
 
     async def plugin_join(self, request):
         raise NotImplementedError()
@@ -149,39 +151,40 @@ class internal_driver(handler):
             [])
 
     async def plugin_endpoint_oper_info(self, request):
-        data = json.loads(request.data)
-        endpoint_id = data.get("EndpointID")
-        network_id = data.get("NetworkID")
+        async with network_database() as ndb:
+            data = json.loads(request.data)
+            endpoint_id = data.get("EndpointID")
+            network_id = data.get("NetworkID")
 
-        sha = sha512()
+            sha = sha512()
 
-        sha.update("{endpoint_id}{network_id}".format(
-            endpoint_id=data.get("EndpointID"),
-            network_id=data.get("NetworkID")))
+            sha.update("{endpoint_id}{network_id}".format(
+                endpoint_id=data.get("EndpointID"),
+                network_id=data.get("NetworkID")))
 
-        oper = next((self._ndb.interfaces.get(index)
-                    for index in self._ndb.interfaces.dump()
-                    if index["iflias"] == sha.hexdigest()))
+            oper = next((ndb.interfaces.get(index)
+                        for index in ndb.interfaces.dump()
+                        if index["iflias"] == sha.hexdigest()))
 
-        net = next(
-            (self._ndb.addresses.get(index)
-             for index in self._ndb.addresses.dump()
-             if self._ndb.addresses.get(index).get("label") == oper.get(
-                 "ifname")))
+            net = next(
+                (ndb.addresses.get(index)
+                for index in ndb.addresses.dump()
+                if ndb.addresses.get(index).get("label") == oper.get(
+                    "ifname")))
 
-        network = IPv4Network(
-            "{addr}/32".format(
-                addr=net.get(
-                    "address"))).supernet(
-                        new_prefix=net.get("prefixlen"))
+            network = IPv4Network(
+                "{addr}/32".format(
+                    addr=net.get(
+                        "address"))).supernet(
+                            new_prefix=net.get("prefixlen"))
 
-        return (
-            200,
-            json.dumps({
-                "Value": {
-                    endpoint_id: oper.get("ifname"),
-                    network_id: str(network)}}),
-            [])
+            return (
+                200,
+                json.dumps({
+                    "Value": {
+                        endpoint_id: oper.get("ifname"),
+                        network_id: str(network)}}),
+                [])
 
     async def plugin_delete_endpoint(self, request):
         return (

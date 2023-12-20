@@ -120,10 +120,7 @@ class service():
                 Path("/mnt/_netcrave/docker").rmdir()
             except BaseException:
                 pass
-
-        if self._ndb is not None:
-            self._ndb.close()
-
+            
     def sigint(self, sig, frame):
         [index.cancel() for index in asyncio.all_tasks()]
 
@@ -131,7 +128,7 @@ class service():
         while True:
             try:
                 self.log.debug("starting daemon, debugging is enabled")
-                self._ca, self._ndb = await setup_environment()
+                self._ca = await setup_environment()
                 self.log.info("configuration initialized and loaded")
                 self.log.info("starting daemons")
                 async with asyncio.TaskGroup() as tg:

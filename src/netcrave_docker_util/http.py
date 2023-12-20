@@ -1,3 +1,5 @@
+# IAmPaigeAT (paige@paige.bio) 2023
+
 import asyncio
 from asyncio.base_events import Server
 from functools import partial

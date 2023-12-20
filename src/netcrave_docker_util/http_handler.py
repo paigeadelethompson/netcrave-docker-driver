@@ -1,3 +1,5 @@
+# IAmPaigeAT (paige@paige.bio) 2023
+
 import asyncio
 from pathlib import Path
 from netcrave_docker_util.http import serve
