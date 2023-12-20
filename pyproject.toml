@@ -65,8 +65,15 @@ netcrave-docker-install = "netcrave_docker_dockerd:install"
 
 [tool.pylint.messages_control]
 disable = [
-    "too-many-ancestors",
-    "too-many-cooks",
-    "too-many-arguments",
-    "too-many-boolean-expressions",
-    "too-many-branches"]
+    "missing-function-docstring",
+    "too-many-function-args",
+    "line-too-long",
+    "missing-class-docstring",
+    "too-many-instance-attributes",
+    "consider-using-f-string",
+    "missing-module-docstring",
+    "logging-format-interpolation",
+    "invalid-name",
+    "redundant-u-string-prefix",
+    "ungrouped-imports"
+]
