@@ -68,8 +68,10 @@ class tag():
             c.execute(query, (self.name(), self.tag_type()))
             self._id, _ = c.fetchone()
 
+
 def get_ipam_scope_tags():
     raise NotImplementedError()
+
 
 def load_tags_from_database(tags):
     conn = ipam_database_client().database()

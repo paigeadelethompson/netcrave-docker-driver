@@ -6,13 +6,14 @@ from netcrave_docker_util.exception import unknown
 from netcrave_docker_util.http_handler import handler
 from netcrave_docker_dockerd.setup_environment import get_NDB
 
+
 class internal_driver(handler):
     def __init__(self):
         super().__init__()
         self._ndb = get_NDB()
         self.add_route(
-            "POST", 
-            "/Plugin.Activate", 
+            "POST",
+            "/Plugin.Activate",
             self.plugin_activate)
         self.add_route(
             "POST",
@@ -121,10 +122,11 @@ class internal_driver(handler):
         selected_interface = next(
             (self._ndb.interfaces.get(index).get("address")
              for index in self._ndb.interfaces.dump()
-             if self._ndb.interfaces.get(index).get("ifname") == index.get("label")))
+             if self._ndb.interfaces.get(index).get("ifname") == index.get(
+                 "label")))
 
         selected_interface.set("ifalias", sha.hexdigest())
-        selected.interface.commit()
+        selected_interface.commit()
 
         return (
             200,
@@ -170,9 +172,11 @@ class internal_driver(handler):
                     for index in self._ndb.interfaces.dump()
                     if index["iflias"] == sha.hexdigest()))
 
-        net = next((self._ndb.addresses.get(index)
-                    for index in self._ndb.addresses.dump()
-                    if self._ndb.addresses.get(index).get("label") == oper.get("ifname")))
+        net = next(
+            (self._ndb.addresses.get(index)
+             for index in self._ndb.addresses.dump()
+             if self._ndb.addresses.get(index).get("label") == oper.get(
+                 "ifname")))
 
         network = IPv4Network(
             "{addr}/32".format(

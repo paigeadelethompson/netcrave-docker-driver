@@ -14,7 +14,7 @@ class scope_label_masks(Enum):
     p__route_table_id = 0x40
     p__vrf_id = 0x80
     p__network_ns = 0xff
-    
+
     @staticmethod
     def default():
         return (scope_label_masks.p__egress_tags.value
@@ -38,7 +38,7 @@ class scope_label_masks(Enum):
     def propagate_scope_tags(_label_mask):
         return (
             _label_mask & scope_label_masks.p__egress_tags.value) != 0 and True or False
-    
+
     @staticmethod
     def propagate_route_table_id(_label_mask):
         return (
@@ -48,7 +48,7 @@ class scope_label_masks(Enum):
     def propagate_network_ns(_label_mask):
         return (
             _label_mask & scope_label_masks.p__network_ns.value) != 0 and True or False
-    
+
     @staticmethod
     def propagate_vrf_id(_label_mask):
         return (

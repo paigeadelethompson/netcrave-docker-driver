@@ -12,14 +12,14 @@ module_logger, main_logger, console_handler = configure_logger_for_module(
 async def start_all():
     async with asyncio.TaskGroup() as tg:
         await asyncio.gather(tg.create_task(certificate_manager_service.http_listener(cls=certificate_manager_service,
-                                                              bind_host="0.0.0.0",
-                                                              port=80)),
+                                                                                      bind_host="0.0.0.0",
+                                                                                      port=80)),
                              tg.create_task(certificate_manager_service.https_listener(cls=certificate_manager_service,
-                                                               bind_host="0.0.0.0",
-                                                               port=443,
-                                                               cert_path="/etc/ssl/server.pem",
-                                                               key_path="/etc/ssl/server.key",
-                                                               ca_cert_path="/etc/ssl/ca.pem")))
+                                                                                       bind_host="0.0.0.0",
+                                                                                       port=443,
+                                                                                       cert_path="/etc/ssl/server.pem",
+                                                                                       key_path="/etc/ssl/server.key",
+                                                                                       ca_cert_path="/etc/ssl/ca.pem")))
 
 
 def daemon():

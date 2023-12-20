@@ -7,6 +7,7 @@ from netcrave_docker_ipam.label import interface_type
 from netcrave_docker_ipam.tags import tag, get_ipam_scope_tags
 from netcrave_docker_dockerd.setup_environment import get_NDB
 
+
 class service():
     def __init__(self):
         self._ndb = get_NDB()
@@ -15,7 +16,7 @@ class service():
         return self._ndb
 
     def family(self, net):
-        if type(IPv6Network) == type(net):
+        if isinstance(IPv6Network, type(net)):
             return "inet6"
         else:
             return "inet4"
@@ -53,9 +54,9 @@ class service():
     def configure_network_addresses(self, new_if, net):
         with new_if as intf:
             intf.add_ip(str(net.network_address()),
-                       prefix=net.prefix_length(),
-                       family=self.family(net),
-                       noprefixroute=())
+                        prefix=net.prefix_length(),
+                        family=self.family(net),
+                        noprefixroute=())
             raise NotImplementedError()
 
     def configure_network_routes(self, net):

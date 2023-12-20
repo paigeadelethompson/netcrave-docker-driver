@@ -1,6 +1,7 @@
 from fs.memoryfs import MemoryFS
 from singleton_decorator import singleton
 
+
 @singleton
 class memory_filesystem_service():
     def new_filesystem(self, id):
