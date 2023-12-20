@@ -12,6 +12,14 @@ A plugin to expand the functionality of Docker
 - End to end encryption and reliable data at rest encryption are extremely important and emphasized
 - Clustering; with or without docker swarm; networking is handled by FRR/iBGP
 
+# OS dependencies
+- libfuse3-dev
+- python3-poetry 
+- build-essential 
+- python3-dev 
+- libfuse3-dev
+- python-is-python3 
+
 # Driver components and dependency 
 - Nearly everything will depend on CockroachDB (postgresql-based) it's a good database with good security mechanisms.
 

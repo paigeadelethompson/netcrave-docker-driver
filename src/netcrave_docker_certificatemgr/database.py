@@ -1,5 +1,5 @@
-import psycopg
 import os
+import psycopg
 
 
 class docker_network_certificatemgr_database_client():

@@ -50,8 +50,8 @@ class service():
             self.configure_network_addresses(cur_if, net)
 
     def configure_network_addresses(self, new_if, net):
-        with new_if as if:
-            if .add_ip(str(net.network_address()),
+        with new_if as intf:
+            intf.add_ip(str(net.network_address()),
                        prefix=net.prefix_length(),
                        family=self.family(net),
                        noprefixroute=())

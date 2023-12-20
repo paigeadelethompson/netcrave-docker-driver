@@ -1,6 +1,6 @@
 FROM netcrave 
 
-RUN apt --option Dpkg::Options::="--force-confold" --no-install-recommends -y install python3-poetry build-essential python3-dev
+RUN apt --option Dpkg::Options::="--force-confold" --no-install-recommends -y install python3-poetry build-essential python3-dev libfuse3-dev
 
 WORKDIR /tmp
 

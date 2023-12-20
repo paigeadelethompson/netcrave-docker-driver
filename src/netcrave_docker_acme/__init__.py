@@ -11,10 +11,10 @@ module_logger, main_logger, console_handler = configure_logger_for_module(
 
 async def start_all():
     async with asyncio.TaskGroup() as tg:
-        await asyncio.gather(tg.create_task(svc.http_listener(cls=acme_service,
+        await asyncio.gather(tg.create_task(acme_service.http_listener(cls=acme_service,
                                                               bind_host="0.0.0.0",
                                                               port=80)),
-                             tg.create_task(svc.https_listener(cls=acme_service,
+                             tg.create_task(acme_service.https_listener(cls=acme_service,
                                                                bind_host="0.0.0.0",
                                                                port=443,
                                                                cert_path="/etc/ssl/server.pem",

@@ -1,3 +1,5 @@
+import os
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 import josepy as jose
@@ -36,7 +38,7 @@ class crypto():
         raise Exception('HTTP-01 challenge was not offered by the CA server.')
 
     def create_account_key(self):
-        acc_key = jose.JWKRSA(
+        return jose.JWKRSA(
             key=rsa.generate_private_key(
                 public_exponent=65537,
                 key_size=os.environ.get("ACME_KEY_SIZE"),
