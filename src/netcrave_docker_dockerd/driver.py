@@ -154,7 +154,7 @@ class internal_driver(handler):
         async with network_database() as ndb:
             a = IPv4Network(str(next(itertools.islice(address.split("/"), 0, 
                                                         sys.maxsize))), 32).hosts().pop()
-            
+            n = IPv4Network(address)
             _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump() 
                     if ip_address(ndb.addresses.get(index).get("address")) == a))
             
@@ -163,7 +163,7 @@ class internal_driver(handler):
             log.debug("address: {} mac-address: {}".format(_a.get("address"), 
                                                             intf.get("address")))
             
-            _a.remove().apply()
+            intf.del_ip(address=n.network_address, prefixlen=n.prefixlen)
             intf.set("ifalias", "{}{}".format(network_id, endpoint_id))
             intf.commit()
             return (200, json.dumps({"Interface": {
