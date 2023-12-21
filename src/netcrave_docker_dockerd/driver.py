@@ -1,5 +1,5 @@
 # IAmPaigeAT (paige@paige.bio) 2023
-
+import asyncio
 import json
 import logging
 import sys
@@ -150,11 +150,16 @@ class internal_driver(handler):
         address = interfaces.get("Address")
         address_ipv6 = interfaces.get("AddressIPv6")
         options = data.get("Options")
+        intf = {}
         
         async with network_database() as ndb:
-            a = IPv4Network(str(next(itertools.islice(address.split("/"), 0, 
-                                                        sys.maxsize))), 32).hosts().pop()
-            n = IPv4Network(address)
+            n = IPv4Network(str(next(itertools.islice(address.split("/"), 0, 
+                                                        sys.maxsize))), 32)
+            a = n.hosts().pop()
+            
+            prefixlen = str(next(itertools.islice(address.split("/"), 1, 
+                                                  sys.maxsize)))
+            
             _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump() 
                     if ip_address(ndb.addresses.get(index).get("address")) == a))
             
@@ -163,13 +168,14 @@ class internal_driver(handler):
             log.debug("address: {} mac-address: {}".format(_a.get("address"), 
                                                             intf.get("address")))
             
-            intf.del_ip(address=n.network_address, prefixlen=n.prefixlen)
             intf.set("ifalias", "{}{}".format(network_id, endpoint_id))
+            intf.del_ip()
+            intf.set("state", "down")
             intf.commit()
-            return (200, json.dumps({"Interface": {
-                "MacAddress": intf.get("address"),
-                "Address": address}}), [])
-        return (500, json.dumps(dict()), [])
+            
+        await asyncio.sleep(8)            
+        return (200, json.dumps({"Interface": {
+            "MacAddress": intf.get("address") }}), [])
 
     async def plugin_join(self, request):
         log = logging.getLogger(__name__)
