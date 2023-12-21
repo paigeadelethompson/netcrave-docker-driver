@@ -1185,16 +1185,6 @@ files = [
 ]
 
 [[package]]
-name = "netns"
-version = "1.0"
-description = "Wrapper for the Linux setns() system call"
-optional = false
-python-versions = "*"
-files = [
-    {file = "netns-1.0.tar.gz", hash = "sha256:dc994c53e415baa739072784292630724d609566fb4a60ed8feef38dd9ecdca5"},
-]
-
-[[package]]
 name = "outcome"
 version = "1.3.0.post0"
 description = "Capture the outcome of Python function calls."
@@ -2044,4 +2034,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "7ec894083b86c06245625133f812d9513411fb91069dc858a412ce4cb002106c"
+content-hash = "e4514bc9e0b2c6d0b5ca2fda655d83e6597d5b23fed416ed4ecbe39c90eb6449"
