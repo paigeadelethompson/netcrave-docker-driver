@@ -3,6 +3,8 @@
 from pathlib import Path
 import subprocess
 import asyncio
+import aiofiles
+import os
 from netcrave_docker_dockerd.setup_environment import setup_environment, setup_compose
 from netcrave_docker_util.ndb import network_database
 from netcrave_docker_util.cmd import cmd_async
@@ -13,7 +15,6 @@ from netcrave_docker_dockerd.driver import internal_driver
 import sys
 import docker
 from docker.errors import DockerException
-
 
 class service():
     def __init__(self):
@@ -30,13 +31,28 @@ class service():
             sem=self._docker_dependency)
 
     async def _run_dockerd(self):
-        await cmd_async(
-            "/opt/netcrave/bin/dockerd",
-            "--config-file",
-            "/etc/netcrave/_netcrave.json")
+        r, w = os.pipe2(os.O_NONBLOCK)
+        with open(Path("/proc/{}/fd/{}".format(os.getpid(), w)), "wb") as script:
+            script.write("""#!/usr/bin/env bash
+                /usr/bin/env ip netns exec _netcrave        \
+                bash -c "cgroupfs-mount ;                   \
+                /opt/netcrave/bin/dockerd                   \
+                --config-file /etc/netcrave/_netcrave.json  \
+                "                                           \
+                exit ; true
+                """.encode("utf-8", "strict"))
+            script.flush()
+            await cmd_async("/usr/bin/env",
+                            "bash",
+                            "/proc/{}/fd/{}".format(os.getpid(), r))
 
     async def _run_containerd(self):
         await cmd_async(
+            "/usr/bin/env",
+            "ip",
+            "netns",
+            "exec",
+            "_netcrave",
             "/opt/netcrave/bin/containerd",
             "--root",
             "/srv/netcrave/_netcrave/containerd",
@@ -139,6 +155,7 @@ class service():
                 await setup_environment()
                 log.info("configuration initialized and loaded")
                 log.info("starting daemons")
+                
                 async with asyncio.TaskGroup() as tg:
                     await self._docker_dependency.acquire()
                     await asyncio.gather(

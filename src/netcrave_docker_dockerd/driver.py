@@ -5,6 +5,7 @@ import logging
 import sys
 import itertools
 from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
+from pathlib import Path
 from hashlib import sha512
 from netcrave_docker_util.exception import unknown
 from netcrave_docker_util.http_handler import handler
@@ -150,7 +151,6 @@ class internal_driver(handler):
         address = interfaces.get("Address")
         address_ipv6 = interfaces.get("AddressIPv6")
         options = data.get("Options")
-        intf = {}
         
         async with network_database() as ndb:
             n = IPv4Network(str(next(itertools.islice(address.split("/"), 0, 
@@ -170,13 +170,28 @@ class internal_driver(handler):
             
             intf.set("ifalias", "{}{}".format(network_id, endpoint_id))
             intf.commit()
-        return (200, json.dumps({"Interface": {
-            "MacAddress": intf.get("address") }}), [])
+            return (200, json.dumps({"Interface": {
+                "MacAddress": intf.get("address") }}), [])
 
     async def plugin_join(self, request):
         log = logging.getLogger(__name__)
         data = await handler.get_post_data(request)
-        raise NotImplementedError()
+        network_id = data.get("NetworkID")
+        endpoint_id = data.get("EndpointID")
+        sandbox_key = data.get("SandboxKey")
+        options = data.get("Options")
+        
+        Path(sandbox_key).unlink(missing_ok=True)
+        Path(sandbox_key).link_to("/run/netns/_netcrave")
+        async with network_database() as ndb:
+            intf = next((ndb.interfaces.get(index) for index in ndb.interfaces.dump()
+                        if "{}{}".format(network_id, endpoint_id) == ndb.interfaces.get(index).get("ifalias")))
+            
+            return (
+                200,
+                json.dumps(dict({"InterfaceName": {"SrcName": intf.get("ifname"), 
+                                                "DstPrefix": ""}, "Gateway": "", 
+                "GatewayIPv6": "", "StaticRoutes": []})), [])
 
     async def plugin_program_external_connectivity(self, request):
         log = logging.getLogger(__name__)
