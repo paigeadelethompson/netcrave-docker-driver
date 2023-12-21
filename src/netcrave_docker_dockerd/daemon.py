@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import asyncio
 from netcrave_docker_dockerd.setup_environment import setup_environment, setup_compose
+from netcrave_docker_util.ndb import network_database
 from netcrave_docker_util.cmd import cmd_async
 import logging
 import signal
@@ -24,8 +25,8 @@ class service():
     async def _run_internal_driver(self):
         await internal_driver.internal_network_driver(
             cls=internal_driver,
-            path="/srv/netcrave/_netcrave/state/plugins",
-            sock_name="netcfg.sock",
+            path="/run/docker/plugins",
+            sock_name="_netcrave.sock",
             sem=self._docker_dependency)
 
     async def _run_dockerd(self):
@@ -69,6 +70,7 @@ class service():
             await asyncio.sleep(1)
 
     async def _dockerd_post_start(self):
+        return
         log = logging.getLogger(__name__)
         await self._docker_network_driver_dependency.acquire()
         self._docker_network_driver_dependency.release()
@@ -123,6 +125,8 @@ class service():
                 Path("/mnt/_netcrave/docker").rmdir()
             except BaseException:
                 pass
+            
+        network_database().__del__()
             
     def sigint(self, sig, frame):
         [index.cancel() for index in asyncio.all_tasks()]

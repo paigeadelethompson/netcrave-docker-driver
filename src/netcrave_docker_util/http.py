@@ -33,8 +33,6 @@ WSGIAppendResponse = Callable[[bytes], None]
 WSGIStartResponse = Callable[[str, WSGIHeaders], Callable[[bytes], None]]
 WSGIApplication = Callable[[WSGIEnviron, WSGIStartResponse], Iterable[bytes]]
 
-logger = logging.getLogger(__name__)
-
 
 async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -> Response:
     # Response data.
@@ -42,24 +40,40 @@ async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -
     response_reason: Optional[str] = None
     response_headers: Optional[WSGIHeaders] = None
     response_body: List[bytes] = []
-    log = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__)
     # Run the application.
     app = application()
     try:
         if environ.get("SERVER_NAME") == "unix":
-            request_uri = "/{request}".format(request=environ.get("HTTP_HOST"))
-            callback = next(
-                (index.get("callback") for index in app.router
-                 if index.get("path") == request_uri))
-            response_status, response_body, headers = await callback(environ)
-            response_headers = app.headers + headers
-            return Response(
-                status=response_status,
-                reason=response_reason,
-                headers=CIMultiDict(response_headers),
-                body=b"".join(response_body))
+            request_uri = "{request}".format(request=environ.get("REQUEST_URI"))
+            logger.debug("request {} {}".format(request_uri, environ))
+            try:
+                callback = next((index.get("callback") 
+                                 for index in app.router 
+                                 if index.get("path") == request_uri))
+                response_status, response_body, headers = await callback(environ)
+                response_headers = app.headers + headers
+                return Response(
+                    status=response_status,
+                    reason=None,
+                    headers=response_headers,
+                    body=response_body.encode("utf-8", "strict"))
+            except StopIteration:
+                logger.debug("no callback found {}".format(request_uri))
+                return Response(
+                    status=404,
+                    reason=None,
+                    headers=app.headers,
+                    body=None)
+    except NotImplementedError as ex:
+        logger.warn(ex)
+        return Response(
+            status=501,
+            reason=None,
+            headers=app.headers,
+            body=None)
     except Exception as ex:
-        log.error(ex)
+        logger.error("error {} {}".format(ex, type(ex)))
         return Response(
             status=500,
             reason=None,
@@ -180,6 +194,7 @@ class WSGIHandler:
         return environ
 
     async def handle_request(self, request: Request) -> Response:
+        logger = logging.getLogger(__name__)
         # Check for body size overflow.
         if request.content_length is not None and request.content_length > self._max_request_body_size:
             raise HTTPRequestEntityTooLarge(
@@ -196,9 +211,8 @@ class WSGIHandler:
                 if content_length > self._max_request_body_size:
                     raise HTTPRequestEntityTooLarge(
                         max_size=self._max_request_body_size,
-                        actual_size=content_length,
-                    )
-                body.write(block)
+                        actual_size=content_length)
+                logger.debug("wrote {}".format(body.write(block)))
             body.seek(0)
             # Get the environ.
             environ = self._get_environ(request, body, content_length)
@@ -258,6 +272,8 @@ async def run_server(
     assert threads >= 1, "threads should be >= 1"
     executor = ThreadPoolExecutor(threads)
 
+    logger = logging.getLogger(__name__)
+    
     # Create aiohttp app.
     app = Application()
 

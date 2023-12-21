@@ -1,6 +1,8 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
 import asyncio
+import json
+import logging
 from pathlib import Path
 from netcrave_docker_util.http import serve
 
@@ -19,6 +21,14 @@ class handler():
     async def health_check(self, request):
         return (204, None, self.headers)
 
+    @staticmethod
+    async def get_post_data(request):
+        log = logging.getLogger(__name__)
+        if request.get("wsgi.input") is not None:
+            data = json.loads(request.get("wsgi.input").read())            
+            log.debug(data)
+            return data
+    
     @staticmethod
     async def http_listener(cls, bind_host, port, sem=asyncio.Lock()):
         raise NotImplementedError()

@@ -1,6 +1,9 @@
 # IAmPaigeAT (paige@paige.bio) 2023
 
 import json
+import logging
+import sys
+import itertools
 from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address, ip_address
 from hashlib import sha512
 from netcrave_docker_util.exception import unknown
@@ -70,8 +73,53 @@ class internal_driver(handler):
             json.dumps({"Scope": "local"}),
             [])
 
+    async def _get_interface_by_address(self, ndb, address):
+        log = logging.getLogger(__name__)
+        log.debug(address)
+        return next((ndb.interfaces.get(index) for index in ndb.interfaces.dump() 
+                     if address.get("label") == ndb.interfaces.get(index).get("ifname")))
+        
+    async def _create_network_v4(self, network_id, data, kind = type(IPv4Network)):
+        log = logging.getLogger(__name__)
+        address_space = data.get("AddressSpace")
+        gateway = data.get("Gateway")
+        pool = data.get("Pool")
+        
+        async with network_database() as ndb:
+            if kind == type(IPv4Network):
+                p = IPv4Network(pool)
+                log.debug("pool {}".format(p))
+                g = IPv4Network(str(next(itertools.islice(gateway.split("/"), 0, sys.maxsize))), 32).hosts().pop()
+                log.debug("gateway {}".format(g))
+                a = next(next(p.address_exclude(IPv4Network(g, 32))).hosts())
+                log.debug("address to lookup {}".format(a))
+                _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump() 
+                           if ip_address(ndb.addresses.get(index).get("address")) == a))
+                log.debug("found NDB address {}".format(_a))
+                return await self._get_interface_by_address(ndb, _a), a, p
+            elif kind == type(IPv6Network):
+                raise NotImplementedError()
+            
     async def plugin_create_network(self, request):
-
+        log = logging.getLogger(__name__)
+        data = await handler.get_post_data(request)
+        network_id = data.get("NetworkID")
+        options = data.get("Options")
+        ipv4_data = data.get("IPv4Data")
+        ipv6_data = data.get("IPv6Data")
+        
+        for index in ipv4_data:
+            log.debug(index)
+            result = await self._create_network_v4(network_id, index, type(IPv4Network))
+            if result is None:
+                return (500, json.dumps(dict()), [])
+        
+        for index in ipv6_data:
+            log.debug(index)
+            result = await self._create_network_v4(network_id, index, type(IPv6Network))
+            if result is None:
+                return (500, json.dumps(dict()), [])
+            
         return (
             200,
             json.dumps(dict()),

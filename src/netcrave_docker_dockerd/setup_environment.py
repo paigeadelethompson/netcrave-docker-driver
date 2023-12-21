@@ -107,119 +107,116 @@ async def create_networks():
     log = logging.getLogger(__name__)
     dotenv = netcrave_dotenv.get()
     async with network_database() as ndb:
-        if ndb.netns.exists("_netcrave"):
-            log.info("networking already configured, not re-creating")
-            return ndb
+        try:
+            with ndb.interfaces.wait(target="_netcrave", ifname="lo") as loopback:
+                log.debug(loopback.set(state="up"))
 
-        log.debug(ndb.sources.add(netns="_netcrave"))
+            distinct_networks = [index for index, _ in groupby([
+                index for index in dotenv.keys()
+                if index.endswith("_NET_4")
+                or index.endswith("_NET_6")],
+                key=lambda k: re.match("^[^_]+(?=_)", k).group())]
 
-        with ndb.interfaces.wait(target="_netcrave", ifname="lo") as loopback:
-            log.debug(loopback.set(state="up"))
+            net_zip = zip(
+                [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 == 0],
+                [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 != 0],
+                distinct_networks)
 
-        distinct_networks = [index for index, _ in groupby([
-            index for index in dotenv.keys()
-            if index.endswith("_NET_4")
-            or index.endswith("_NET_6")],
-            key=lambda k: re.match("^[^_]+(?=_)", k).group())]
+            log.debug(net_zip)
 
-        net_zip = zip(
-            [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 == 0],
-            [index for index in range(1, (len(distinct_networks) * 2)) if index % 2 != 0],
-            distinct_networks)
+            for red, blue, index in net_zip:
+                n4 = (dotenv.get("{index}_NET_4".format(index=index)) is not None
+                    and IPv4Network(dotenv.get("{index}_NET_4".format(index=index)))
+                    or None)
+                n6 = (dotenv.get("{index}_NET_6".format(index=index)) is not None
+                    and IPv6Network(dotenv.get("{index}_NET_6".format(index=index)))
+                    or None)
+                a4 = (dotenv.get("{index}_IP4".format(index=index)) is not None
+                    and IPv4Address(dotenv.get("{index}_IP4".format(index=index)))
+                    or None)
+                a6 = (dotenv.get("{index}_IP6".format(index=index)) is not None
+                    and IPv6Address(dotenv.get("{index}_IP6".format(index=index)))
+                    or None)
 
-        log.debug(net_zip)
-
-        for red, blue, index in net_zip:
-            n4 = (dotenv.get("{index}_NET_4".format(index=index)) is not None
-                and IPv4Network(dotenv.get("{index}_NET_4".format(index=index)))
-                or None)
-            n6 = (dotenv.get("{index}_NET_6".format(index=index)) is not None
-                and IPv6Network(dotenv.get("{index}_NET_6".format(index=index)))
-                or None)
-            a4 = (dotenv.get("{index}_IP4".format(index=index)) is not None
-                and IPv4Address(dotenv.get("{index}_IP4".format(index=index)))
-                or None)
-            a6 = (dotenv.get("{index}_IP6".format(index=index)) is not None
-                and IPv6Address(dotenv.get("{index}_IP6".format(index=index)))
-                or None)
-
-            with ndb.interfaces.create(
-                    target='_netcrave',
-                    kind="vrf",
-                    vrf_table=red,
-                    state="up",
-                    ifname="red{id}".format(id=red)) as vrf:
                 with ndb.interfaces.create(
-                        target="_netcrave",
-                        ifname="vma{id}".format(id=red),
-                        kind='veth',
-                        state="up",
-                        peer={'ifname': 'vsl{id}'.format(id=blue), "net_ns_fd": "_netcrave"}) as veth:
-                    vrf.add_port(veth)
-                    log.debug("A Master interface in RED plane {}".format(veth))
-                    log.debug(
-                        "A VRF in RED plane, master interface assigned {}".format(vrf))
-
-            with ndb.interfaces.wait(
-                    target="_netcrave",
-                    ifname="red{id}".format(id=red)) as vrf:
-                with ndb.interfaces.get(
-                        target="_netcrave",
-                        ifname="vma{id}".format(id=red)) as veth:
-                    if a4 is not None:
-                        veth.add_ip(
-                            address=str(next(n4.hosts())),
-                            prefixlen=n4.prefixlen,
-                            family=AF_INET)
-                    if a6 is not None:
-                        veth.add_ip(
-                            address=str(next(n6.hosts())),
-                            prefixlen=n6.prefixlen,
-                            family=AF_INET6)
-                    log.debug(
-                        "Assign addresses to a master interface in the RED plane".format(veth))
-                    log.debug(
-                        "RED VRF should be unchanged, but required dependency to VETH address assignment".format(vrf))
-
-            with ndb.interfaces.create(
-                    target='_netcrave',
-                    kind="vrf",
-                    vrf_table=blue,
-                    state="up",
-                    ifname="blue{id}".format(id=blue)) as vrf:
-                with ndb.interfaces.wait(
                         target='_netcrave',
-                        ifname="vsl{id}".format(id=blue)) as peer:
-                    vrf.add_port(peer)
-                    peer.set(state="up")
-                    log.debug("A slave interface in BLUE plane {}".format(peer))
-                    log.debug(
-                        "A VRF in BLUE plane, slave interface assigned {}".format(vrf))
+                        kind="vrf",
+                        vrf_table=red,
+                        state="up",
+                        ifname="red{id}".format(id=red)) as vrf:
+                    with ndb.interfaces.create(
+                            target="_netcrave",
+                            ifname="vma{id}".format(id=red),
+                            kind='veth',
+                            state="up",
+                            peer={'ifname': 'vsl{id}'.format(id=blue), "net_ns_fd": "_netcrave"}) as veth:
+                        vrf.add_port(veth)
+                        log.debug("A Master interface in RED plane {}".format(veth))
+                        log.debug(
+                            "A VRF in RED plane, master interface assigned {}".format(vrf))
 
-            with ndb.interfaces.wait(
-                    target="_netcrave",
-                    ifname="blue{id}".format(id=blue)) as vrf:
-                with ndb.interfaces.get(
+                with ndb.interfaces.wait(
                         target="_netcrave",
-                        ifname="vsl{id}".format(id=blue)) as veth:
-                    if a4 is not None:
-                        veth.add_ip(
-                            address=str(a4),
-                            prefixlen=n4.prefixlen,
-                            family=AF_INET)
-                    if a6 is not None:
-                        veth.add_ip(
-                            address=str(a6),
-                            prefixlen=n6.prefixlen,
-                            family=AF_INET6)
-                    log.debug(
-                        "Assign addresses to a slave interface in the BLUE plane".format(veth))
-                    log.debug(
-                        "BLUE VRF should be unchanged, but required dependency to VETH address assignment".format(vrf))
+                        ifname="red{id}".format(id=red)) as vrf:
+                    with ndb.interfaces.get(
+                            target="_netcrave",
+                            ifname="vma{id}".format(id=red)) as veth:
+                        if a4 is not None:
+                            veth.add_ip(
+                                address=str(next(n4.hosts())),
+                                prefixlen=n4.prefixlen,
+                                family=AF_INET)
+                        if a6 is not None:
+                            veth.add_ip(
+                                address=str(next(n6.hosts())),
+                                prefixlen=n6.prefixlen,
+                                family=AF_INET6)
+                        log.debug(
+                            "Assign addresses to a master interface in the RED plane".format(veth))
+                        log.debug(
+                            "RED VRF should be unchanged, but required dependency to VETH address assignment".format(vrf))
 
-            for index in await create_policy_routing_rules_and_routes(red, blue, index, ndb):
-                log.debug("commiting route/rule to NDB {}".format(index.commit()))
-        return None
+                with ndb.interfaces.create(
+                        target='_netcrave',
+                        kind="vrf",
+                        vrf_table=blue,
+                        state="up",
+                        ifname="blue{id}".format(id=blue)) as vrf:
+                    with ndb.interfaces.wait(
+                            target='_netcrave',
+                            ifname="vsl{id}".format(id=blue)) as peer:
+                        vrf.add_port(peer)
+                        peer.set(state="up")
+                        log.debug("A slave interface in BLUE plane {}".format(peer))
+                        log.debug(
+                            "A VRF in BLUE plane, slave interface assigned {}".format(vrf))
+
+                with ndb.interfaces.wait(
+                        target="_netcrave",
+                        ifname="blue{id}".format(id=blue)) as vrf:
+                    with ndb.interfaces.get(
+                            target="_netcrave",
+                            ifname="vsl{id}".format(id=blue)) as veth:
+                        if a4 is not None:
+                            veth.add_ip(
+                                address=str(a4),
+                                prefixlen=n4.prefixlen,
+                                family=AF_INET)
+                        if a6 is not None:
+                            veth.add_ip(
+                                address=str(a6),
+                                prefixlen=n6.prefixlen,
+                                family=AF_INET6)
+                        log.debug(
+                            "Assign addresses to a slave interface in the BLUE plane".format(veth))
+                        log.debug(
+                            "BLUE VRF should be unchanged, but required dependency to VETH address assignment".format(vrf))
+
+                for index in await create_policy_routing_rules_and_routes(red, blue, index, ndb):
+                    log.debug("commiting route/rule to NDB {}".format(index.commit()))
+            return None
+        except: 
+            log.warn("NDB seems to already be initialized...")
 
 
 async def create_configuration():
@@ -230,6 +227,7 @@ async def create_configuration():
     Path("/run/netcrave/_netcrave/sock.dockerd").unlink(missing_ok=True)
     Path("/run/netcrave/_netcrave/sock.containerd").unlink(missing_ok=True)
     Path("/srv/netcrave/_netcrave/state/plugins").mkdir(parents=True, exist_ok=True)
+    Path("/run/docker/plugins").mkdir(parents=True, exist_ok=True)
     Path("/srv/netcrave/_netcrave/data").mkdir(parents=True, exist_ok=True)
     Path("/srv/netcrave/_netcrave/containerd").mkdir(parents=True, exist_ok=True)
     Path("/srv/netcrave/_netcrave/NDB").mkdir(parents=True, exist_ok=True)
