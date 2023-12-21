@@ -169,11 +169,7 @@ class internal_driver(handler):
                                                             intf.get("address")))
             
             intf.set("ifalias", "{}{}".format(network_id, endpoint_id))
-            intf.del_ip()
-            intf.set("state", "down")
             intf.commit()
-            
-        await asyncio.sleep(8)            
         return (200, json.dumps({"Interface": {
             "MacAddress": intf.get("address") }}), [])
 
