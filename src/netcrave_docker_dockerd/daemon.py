@@ -32,7 +32,7 @@ class service():
 
     async def _run_dockerd(self):
         r, w = os.pipe2(os.O_NONBLOCK)
-        with open(Path("/proc/{}/fd/{}".format(os.getpid(), w)), "wb") as script:
+        with open(Path("/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=w)), "wb") as script:
             script.write("""#!/usr/bin/env bash
                 /usr/bin/env ip netns exec _netcrave        \
                 bash -c "cgroupfs-mount ;                   \
@@ -44,7 +44,7 @@ class service():
             script.flush()
             await cmd_async("/usr/bin/env",
                             "bash",
-                            "/proc/{}/fd/{}".format(os.getpid(), r))
+                            "/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=r))
 
     async def _run_containerd(self):
         await cmd_async(
