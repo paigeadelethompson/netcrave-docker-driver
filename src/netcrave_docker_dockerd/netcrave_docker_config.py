@@ -28,6 +28,7 @@ def get_default():
             'ip-forward': True,
             'ip-masq': False,
             'iptables': False,
+            'cgroup-parent': "_netcrave",
             "default-runtime": "runc",
             "runtimes": {"kata-runtime": {"path": "/opt/netcrave/bin/kata-runtime"}},
             'ip6tables': False,
@@ -50,4 +51,4 @@ def get_default():
             'tlscert': '/etc/netcrave/ssl/_netcrave.pem',
             'tlskey': '/etc/netcrave/ssl/_netcrave.key',
             'tlsverify': True,
-            'userns-remap': 'default'}
+            "userland-proxy": False}

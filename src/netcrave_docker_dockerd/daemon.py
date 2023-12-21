@@ -47,18 +47,23 @@ class service():
                             "/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=r))
 
     async def _run_containerd(self):
-        await cmd_async(
-            "/usr/bin/env",
-            "ip",
-            "netns",
-            "exec",
-            "_netcrave",
-            "/opt/netcrave/bin/containerd",
-            "--root",
-            "/srv/netcrave/_netcrave/containerd",
-            "--address",
-            "/run/netcrave/_netcrave/sock.containerd")
-
+        r, w = os.pipe2(os.O_NONBLOCK)
+        with open(Path("/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=w)), "wb") as script:
+            script.write("""#!/usr/bin/env bash
+                /usr/bin/env ip netns exec _netcrave        \
+                bash -c "cgroupfs-mount ;                   \
+                /opt/netcrave/bin/containerd                \
+                --root /srv/netcrave/_netcrave/containerd   \
+                --address                                   \
+                /run/netcrave/_netcrave/sock.containerd     \
+                "                                           \
+                exit ; true
+                """.encode("utf-8", "strict"))
+            script.flush()
+            await cmd_async("/usr/bin/env",
+                            "bash",
+                            "/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=r))        
+        
     async def _wait_for_docker_daemon(self):
         log = logging.getLogger(__name__)
         while True:
