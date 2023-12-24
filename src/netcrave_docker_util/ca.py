@@ -17,12 +17,12 @@ class ez_rsa():
     async def get_netcrave_certificate(self):
         return await self.load_key_and_certificate("/etc/netcrave/ssl/_netcrave.key",
                                                   "/etc/netcrave/ssl/_netcrave.pem")
-    
+
     async def netcrave_certificate(self):
         if not (Path("/etc/netcrave/ssl/ca.key").exists()
                 and not Path("/etc/netcrave/ssl/ca.pem").exists()):
             await self.create_default_ca()
-            
+
         if not (Path("/etc/netcrave/ssl/_netcrave.key").exists()
                 and not Path("/etc/netcrave/ssl/_netcrave.pem").exists()):
             return await self.create_server_certificate(
@@ -36,7 +36,7 @@ class ez_rsa():
         else:
             return self
 
-    async def load_key_and_certificate(self, key_path, cert_path): 
+    async def load_key_and_certificate(self, key_path, cert_path):
         async with aiofiles.open(key_path, "rb") as key_data:
             root_key = serialization.load_pem_private_key(
                 await key_data.read(),
@@ -47,7 +47,7 @@ class ez_rsa():
                     cert_data.read(),
                     default_backend())
                 return root_key, root_cert
-            
+
     async def save_key_and_certificate(self, key_dest, cert_dest, key, cert):
         async with aiofiles.open(key_dest, "wb") as key_file:
             await key_file.write(key.private_bytes(
@@ -60,14 +60,14 @@ class ez_rsa():
 
     async def create_server_certificate(self, domain, country, state, locality, org, key_file_dest, cert_file_dest):
         log = logging.getLogger(__name__)
-        
+
         if Path(key_file_dest).exists() or Path(cert_file_dest).exists():
             log.info("netcrave-docker certificate already exists, not creating")
             return self
-        
-        root_key, root_cert = await self.load_key_and_certificate("/etc/netcrave/ssl/ca.key", 
+
+        root_key, root_cert = await self.load_key_and_certificate("/etc/netcrave/ssl/ca.key",
                                                                   "/etc/netcrave/ssl/ca.pem")
-        
+
         cert_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048,
@@ -128,8 +128,8 @@ class ez_rsa():
             private_key=private_key, algorithm=hashes.SHA512(),
             backend=default_backend())
 
-        await self.save_key_and_certificate("/etc/netcrave/ssl/ca.key", 
-                                            "/etc/netcrave/ssl/ca.pem", 
+        await self.save_key_and_certificate("/etc/netcrave/ssl/ca.key",
+                                            "/etc/netcrave/ssl/ca.pem",
                                             private_key,
                                             certificate)
         return self

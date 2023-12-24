@@ -3,18 +3,21 @@
 from pathlib import Path
 import subprocess
 import asyncio
-import aiofiles
 import os
-from netcrave_docker_dockerd.setup_environment import setup_environment, setup_compose
-from netcrave_docker_util.ndb import network_database
-from netcrave_docker_util.cmd import cmd_async
 import logging
 import signal
 import traceback
-from netcrave_docker_dockerd.driver import internal_driver
 import sys
 import docker
 from docker.errors import DockerException
+from netcrave_docker_util.ndb import network_database
+from netcrave_docker_util.cmd import cmd_async
+from netcrave_docker_dockerd.driver import internal_driver
+from netcrave_docker_dockerd.setup_environment import (setup_environment,
+                                                       get_user_id,
+                                                       setup_compose,
+                                                       change_netns,
+                                                       restore_default_netns)
 
 class service():
     def __init__(self):
@@ -24,6 +27,10 @@ class service():
         self._docker_network_driver_dependency = asyncio.Lock()
 
     async def _run_internal_driver(self):
+        #id = await get_user_id("_netcrave")
+        #os.setuid(int(id))
+        #assert os.getuid() == int(id)
+
         await internal_driver.internal_network_driver(
             cls=internal_driver,
             path="/run/docker/plugins",
@@ -31,39 +38,21 @@ class service():
             sem=self._docker_dependency)
 
     async def _run_dockerd(self):
-        r, w = os.pipe2(os.O_NONBLOCK)
-        with open(Path("/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=w)), "wb") as script:
-            script.write("""#!/usr/bin/env bash
-                /usr/bin/env ip netns exec _netcrave        \
-                bash -c "cgroupfs-mount ;                   \
-                /opt/netcrave/bin/dockerd                   \
-                --config-file /etc/netcrave/_netcrave.json  \
-                "                                           \
-                exit ; true
-                """.encode("utf-8", "strict"))
-            script.flush()
-            await cmd_async("/usr/bin/env",
-                            "bash",
-                            "/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=r))
+        assert os.getuid() == 0
+        await change_netns()
+
+        await cmd_async("/opt/netcrave/bin/dockerd", "--config-file", "/etc/netcrave/_netcrave.json")
 
     async def _run_containerd(self):
-        r, w = os.pipe2(os.O_NONBLOCK)
-        with open(Path("/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=w)), "wb") as script:
-            script.write("""#!/usr/bin/env bash
-                /usr/bin/env ip netns exec _netcrave        \
-                bash -c "cgroupfs-mount ;                   \
-                /opt/netcrave/bin/containerd                \
-                --root /srv/netcrave/_netcrave/containerd   \
-                --address                                   \
-                /run/netcrave/_netcrave/sock.containerd     \
-                "                                           \
-                exit ; true
-                """.encode("utf-8", "strict"))
-            script.flush()
-            await cmd_async("/usr/bin/env",
-                            "bash",
-                            "/proc/{pid}/fd/{fd}".format(pid=os.getpid(), fd=r))        
-        
+        assert os.getuid() == 0
+        await change_netns()
+
+        await cmd_async("/opt/netcrave/bin/containerd",
+                        "--root",
+                        "/srv/netcrave/_netcrave/bin/containerd",
+                        "--address",
+                        "/run/netcrave/_netcrave/sock.containerd")
+
     async def _wait_for_docker_daemon(self):
         log = logging.getLogger(__name__)
         while True:
@@ -146,9 +135,9 @@ class service():
                 Path("/mnt/_netcrave/docker").rmdir()
             except BaseException:
                 pass
-            
+
         network_database().__del__()
-            
+
     def sigint(self, sig, frame):
         [index.cancel() for index in asyncio.all_tasks()]
 
@@ -160,7 +149,7 @@ class service():
                 await setup_environment()
                 log.info("configuration initialized and loaded")
                 log.info("starting daemons")
-                
+
                 async with asyncio.TaskGroup() as tg:
                     await self._docker_dependency.acquire()
                     await asyncio.gather(

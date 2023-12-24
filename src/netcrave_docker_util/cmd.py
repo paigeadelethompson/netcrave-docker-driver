@@ -93,7 +93,9 @@ async def cmd_async(*args, **kwargs):
     log.info("executing async command {}".format([*args]))
     try:
         prx = io_proxy()
-        proc_coro = await asyncio.subprocess.create_subprocess_exec(*args, stdout=prx.stdout(), stderr=prx.stderr())
+        proc_coro = await asyncio.subprocess.create_subprocess_exec(*[str(index) for index in args],
+                                                                    stdout=prx.stdout(),
+                                                                    stderr=prx.stderr())
         await asyncio.gather(process_cmd(proc_coro, prx))
         return proc_coro.returncode
     except Exception as ex:
