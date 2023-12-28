@@ -14,7 +14,7 @@ from netcrave_docker_util.ndb import network_database
 from netcrave_docker_util.cmd import cmd_async
 from netcrave_docker_dockerd.driver import internal_driver
 from netcrave_docker_dockerd.setup_environment import (setup_environment,
-                                                       get_user_id,
+                                                       get_id,
                                                        setup_compose,
                                                        change_netns,
                                                        restore_default_netns)
@@ -24,78 +24,95 @@ class service():
         self.stdoutHandler = logging.StreamHandler(stream=sys.stdout)
         signal.signal(signal.SIGINT, self.sigint)
         self._docker_dependency = asyncio.Lock()
-        self._docker_network_driver_dependency = asyncio.Lock()
 
     async def _run_internal_driver(self):
-        #id = await get_user_id("_netcrave")
-        #os.setuid(int(id))
-        #assert os.getuid() == int(id)
+        log = logging.getLogger(__name__)
+        id = await get_id("_netcrave")
+        gid = await get_id("_netcrave", "/etc/group")
+        pid = os.fork()
 
-        await internal_driver.internal_network_driver(
-            cls=internal_driver,
-            path="/run/docker/plugins",
-            sock_name="_netcrave.sock",
-            sem=self._docker_dependency)
+        if pid == 0:
+            os.setgid(gid)
+            os.setuid(id)
+            assert os.getuid() == id
+            assert os.getgid() == gid
+
+            log.debug("forked and setuid/gid to uid: {} gid: {} pid: {}".format(
+                os.getuid(),
+                os.getgid(),
+                pid))
+
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(internal_driver.internal_network_driver(
+                internal_driver,
+                "/run/docker/plugins/",
+                "_netcrave.sock"))
+
+        else:
+            # XXX TODO this call to get_event_loop is different from the one in the parent if statement,
+            # rather it returns a different loop from the child after fork(), but this parent has to remain
+            # active otherwise the child process will close when this async task finishes, for now just
+            # wait unconditionally forever
+            while asyncio.get_event_loop().is_running():
+                await asyncio.sleep(sys.maxsize)
 
     async def _run_dockerd(self):
         assert os.getuid() == 0
-        await change_netns()
+        await change_netns() ### XXX TODO this needs to be managed from a context manager, with a sync enter/exit
 
-        await cmd_async("/opt/netcrave/bin/dockerd", "--config-file", "/etc/netcrave/_netcrave.json")
+
+        await cmd_async(
+            "/opt/netcrave/bin/dockerd",
+            "--config-file",
+            "/etc/netcrave/_netcrave.json")
 
     async def _run_containerd(self):
         assert os.getuid() == 0
-        await change_netns()
+        await change_netns() ### XXX TODO this needs to be managed from a context manager, with a sync enter/exit
 
-        await cmd_async("/opt/netcrave/bin/containerd",
-                        "--root",
-                        "/srv/netcrave/_netcrave/bin/containerd",
-                        "--address",
-                        "/run/netcrave/_netcrave/sock.containerd")
+        await cmd_async(
+            "/opt/netcrave/bin/containerd",
+            "--root",
+            "/srv/netcrave/_netcrave/bin/containerd",
+            "--address",
+            "/run/netcrave/_netcrave/sock.containerd")
 
     async def _wait_for_docker_daemon(self):
         log = logging.getLogger(__name__)
+
         while True:
             try:
                 docker.client.DockerClient(
                     "unix:///run/netcrave/_netcrave/sock.dockerd")
+
                 log.info("docker is online, releasing dependency lock")
                 self._docker_dependency.release()
+
                 return
             except DockerException:
                 log.warn("waiting for docker daemon to come online")
-            await asyncio.sleep(1)
 
-    async def _wait_for_docker_network_driver(self):
-        log = logging.getLogger(__name__)
-        while True:
-            try:
-                pass
-                # docker.client.DockerClient("unix:///run/_netcrave/sock.dockerd")
-                # self.log.info("docker is online, releasing dependency lock")
-                # self._docker_dependency.release()
-                # return
-            except DockerException:
-                log.warn("waiting for docker daemon to come online")
             await asyncio.sleep(1)
 
     async def _dockerd_post_start(self):
-        return
         log = logging.getLogger(__name__)
-        await self._docker_network_driver_dependency.acquire()
-        self._docker_network_driver_dependency.release()
-        self._proj = await setup_compose()
+
         try:
+            await self._docker_dependency.acquire()
+            self._docker_dependency.release()
+
+            self._proj = await setup_compose()
+
             if len([index for index in self._proj.client.images() if len(
                     [index2 for index2 in index.get("RepoTags") if index2.startswith("netcrave")]) > 0]) == 0:
+
                 self._proj.build(["netcrave-image"])
                 self._proj.build(["netcrave-docker-image"])
 
             certificate_volumes = [
                 self._proj.volumes.volumes.get(index)
                 for index in self._proj.volumes.volumes.keys()
-                if index.endswith("_ssl") and self._proj.volumes.volumes.get(
-                    index).exists()]
+                if index.endswith("_ssl") and self._proj.volumes.volumes.get(index).exists()]
 
             if len(certificate_volumes) == 0:
                 self._proj.up(["cockroach-copy-certs"])
@@ -136,17 +153,20 @@ class service():
             except BaseException:
                 pass
 
-        network_database().__del__()
+        network_database().__del__() # XXX Singleton which keeps handle open to NDB
 
     def sigint(self, sig, frame):
         [index.cancel() for index in asyncio.all_tasks()]
 
     async def start(self):
         log = logging.getLogger(__name__)
+
         while True:
             try:
                 log.debug("starting daemon, debugging is enabled")
+
                 await setup_environment()
+
                 log.info("configuration initialized and loaded")
                 log.info("starting daemons")
 
@@ -157,18 +177,19 @@ class service():
                         tg.create_task(self._run_containerd()),
                         tg.create_task(self._run_dockerd()),
                         tg.create_task(self._dockerd_post_start()),
-                        tg.create_task(self._wait_for_docker_daemon()),
-                        tg.create_task(self._wait_for_docker_network_driver()))
+                        tg.create_task(self._wait_for_docker_daemon()))
 
             except asyncio.CancelledError as ex:
                 log.critical("events cancelled {}".format(ex))
                 raise
+
             except Exception as ex:
                 log.critical(
                     "Caught non-recoverable error {ex} {stacktrace}".format(
                         ex=ex, stacktrace="".join(
                             traceback.format_exception(ex))))
                 [index.cancel() for index in asyncio.all_tasks()]
+
             break
 
     async def create_service(self):

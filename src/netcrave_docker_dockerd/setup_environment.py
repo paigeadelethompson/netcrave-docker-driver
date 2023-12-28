@@ -2,12 +2,12 @@
 
 import os
 from pathlib import Path
+import shutil
 import json
 from itertools import groupby
 import re
 from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
 from socket import AF_INET, AF_INET6
-from pwd import getpwnam
 import logging
 import aiofiles
 from typing import Callable
@@ -16,7 +16,6 @@ import netcrave_docker_dockerd.netcrave_dot_env as netcrave_dotenv
 from pyroute2.netns import setns
 from pyroute2.nftables.main import NFTables
 from netcrave_docker_util.cmd import cmd_async
-from netcrave_docker_util.lazy import swallow
 from netcrave_docker_util.ca import ez_rsa
 from netcrave_docker_util.ndb import network_database
 from netcrave_docker_dockerd.compose import get_compose
@@ -95,34 +94,36 @@ async def create_policy_routing_rules_and_routes(current_index) -> Callable[[int
 
 async def create_internet_gateway(green, ndb, slave_ns):
     log = logging.getLogger(__name__)
-
-    with ndb.interfaces.create(
-            kind="vrf",
-            vrf_table=green,
-            state="up",
-            ifname="green{id}".format(id=green)) as vrf:
+    try:
         with ndb.interfaces.create(
-                ifname="igwma{id}".format(id=green),
-                kind='veth',
+                kind="vrf",
+                vrf_table=green,
                 state="up",
-                peer={'ifname': 'igwsl{id}'.format(id=green), "net_ns_fd": slave_ns}) as veth:
-            vrf.add_port(veth)
-            veth.add_ip(
-                address=str("10.254.0.1"),
+                ifname="green{id}".format(id=green)) as vrf:
+            with ndb.interfaces.create(
+                    ifname="igwma{id}".format(id=green),
+                    kind='veth',
+                    state="up",
+                    peer={'ifname': 'igwsl{id}'.format(id=green), "net_ns_fd": slave_ns}) as veth:
+                vrf.add_port(veth)
+                veth.add_ip(
+                    address=str("10.254.0.1"),
+                    prefixlen=30,
+                    family=AF_INET)
+                log.debug("A Master interface in GREEN plane {}".format(veth))
+                log.debug("A VRF in GREEN plane, master interface assigned {}".format(vrf))
+
+        with ndb.interfaces.wait(
+                target=slave_ns,
+                ifname="igwsl{id}".format(id=green)) as peer:
+            peer.add_ip(
+                address=str("10.254.0.2"),
                 prefixlen=30,
                 family=AF_INET)
-            log.debug("A Master interface in GREEN plane {}".format(veth))
-            log.debug("A VRF in GREEN plane, master interface assigned {}".format(vrf))
-
-    with ndb.interfaces.wait(
-        target=slave_ns,
-        ifname="igwsl{id}".format(id=green)) as peer:
-        veth.add_ip(
-            address=str("10.254.0.2"),
-            prefixlen=30,
-            family=AF_INET)
-        peer.set(state="up")
-        log.debug("primary gateway slave interface assigned to ns {}".format(slave_ns))
+            peer.set(state="up")
+            log.debug("primary gateway slave interface assigned to ns {}".format(slave_ns))
+    except:
+        log.debug("IGW may already exist")
 
 async def create_networks():
     """Creates netowrks; VRFs, interfaces, routes and routing rules
@@ -147,9 +148,9 @@ async def create_networks():
     log = logging.getLogger(__name__)
     dotenv = netcrave_dotenv.get()
     async with network_database() as ndb:
-        await create_internet_gateway(127, ndb, "_netcrave")
-
         try:
+            await create_internet_gateway(127, ndb, "_netcrave")
+
             with ndb.interfaces.wait(target="_netcrave", ifname="lo") as loopback:
                 log.debug(loopback.set(state="up"))
 
@@ -196,7 +197,9 @@ async def create_networks():
                         log.debug("A Master interface in RED plane {}".format(veth))
                         log.debug(
                             "A VRF in RED plane, master interface assigned {}".format(vrf))
-
+        except:
+            pass
+        try:
                 with ndb.interfaces.wait(
                         target="_netcrave",
                         ifname="red{id}".format(id=red)) as vrf:
@@ -218,7 +221,9 @@ async def create_networks():
                         log.debug(
                             "RED VRF should be unchanged, but required dependency to VETH address assignment".format(
                                 vrf))
-
+        except:
+            pass
+        try:
                 with ndb.interfaces.create(
                         target='_netcrave',
                         kind="vrf",
@@ -252,19 +257,21 @@ async def create_networks():
                         log.debug("Assign addresses to a slave interface in the BLUE plane".format(veth))
                         log.debug("BLUE VRF should be unchanged, but required dependency to VETH address assignment".format(
                                 vrf))
-
-                rows = await create_policy_routing_rules_and_routes(index)
-
-                for row in rows(red, blue, index, ndb):
-                    log.debug("commiting route/rule to NDB {}".format(row.commit()))
         except:
-            log.warn("NDB seems to already be initialized...")
+            log.warn("NDB may already be initialized...")
 
-async def get_user_id(user_name):
-    async with aiofiles.open("/etc/passwd") as users:
-        return [int(index.split(":").pop(2))
+        rows = await create_policy_routing_rules_and_routes(index)
+        for row in rows(red, blue, index, ndb):
+            try:
+                log.debug("commiting route/rule to NDB {}".format(row.commit()))
+            except:
+                log.warn("failed to add route, may already exist")
+
+async def get_id(user_name, which="/etc/passwd"):
+    async with aiofiles.open(which) as users:
+        return int([int(index.split(":").pop(2))
          for index in await users.readlines()
-         if index.split(":").pop(0) == user_name].pop()
+         if index.split(":").pop(0) == user_name].pop())
 
 async def create_users_and_groups(names = ["_netcrave"]):
     log = logging.getLogger(__name__)
@@ -311,7 +318,11 @@ async def create_configuration():
     Path("/run/netcrave/_netcrave/sock.dockerd").unlink(missing_ok=True)
     Path("/run/netcrave/_netcrave/sock.containerd").unlink(missing_ok=True)
     Path("/srv/netcrave/_netcrave/state/plugins").mkdir(parents=True, exist_ok=True)
+
     Path("/run/docker/plugins").mkdir(parents=True, exist_ok=True)
+    shutil.chown(Path("/run/docker/plugins"), group = "_netcrave")
+    Path("/run/docker/plugins").chmod(0o770)
+
     Path("/srv/netcrave/_netcrave/data").mkdir(parents=True, exist_ok=True)
     Path("/srv/netcrave/_netcrave/containerd").mkdir(parents=True, exist_ok=True)
     Path("/srv/netcrave/_netcrave/NDB").mkdir(parents=True, exist_ok=True)
@@ -326,7 +337,6 @@ async def create_configuration():
             await config.write("\n".join(["{env_key}={env_value}".format(
                 env_key=key,
                 env_value=value) for key, value in netcrave_dotenv.get_default()]))
-
 
 async def setup_compose():
     return await get_compose()

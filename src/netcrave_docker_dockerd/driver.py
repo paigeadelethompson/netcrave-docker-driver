@@ -180,13 +180,12 @@ class internal_driver(handler):
         endpoint_id = data.get("EndpointID")
         sandbox_key = data.get("SandboxKey")
         options = data.get("Options")
-        
+
         # Path(sandbox_key).unlink(missing_ok=True)
         # Path(sandbox_key).link_to("/run/netns/_netcrave")
         async with network_database() as ndb:
             intf = next((ndb.interfaces.get(index) for index in ndb.interfaces.dump()
                         if "{}{}".format(network_id, endpoint_id) == ndb.interfaces.get(index).get("ifalias")))
-            
             return (
                 200,
                 json.dumps(dict({"InterfaceName": {"SrcName": intf.get("ifname"), 

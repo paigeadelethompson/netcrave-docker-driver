@@ -25,10 +25,10 @@ class handler():
     async def get_post_data(request):
         log = logging.getLogger(__name__)
         if request.get("wsgi.input") is not None:
-            data = json.loads(request.get("wsgi.input").read())            
+            data = json.loads(request.get("wsgi.input").read())
             log.debug(data)
             return data
-    
+
     @staticmethod
     async def http_listener(cls, bind_host, port, sem=asyncio.Lock()):
         raise NotImplementedError()
@@ -39,11 +39,13 @@ class handler():
 
     @staticmethod
     async def internal_network_driver(cls, path, sock_name, sem=asyncio.Lock()):
-        await sem.acquire()
-        sem.release()
+        # await sem.acquire() ### XXX not sure if this is the best place to do this
+        # sem.release()
 
         whole_path = "{path}/{sock_name}".format(
-            path=path, sock_name=sock_name)
+            path=path,
+            sock_name=sock_name)
+
         Path(whole_path).unlink(missing_ok=True)
 
         await serve(

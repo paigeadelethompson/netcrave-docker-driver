@@ -16,8 +16,7 @@ class network_database():
         self._ndb = NDB(db_provider='sqlite3',
                         db_spec='/srv/netcrave/_netcrave/NDB/network.sqlite3',
                         rtnl_debug=os.environ.get("DEBUG") and True or False,
-                        log="on",
-                        auto_netns=True)
+                        log="on")
         
         self._ndb.sources.add(netns="_netcrave")
         
