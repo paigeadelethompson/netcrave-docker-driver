@@ -11,6 +11,7 @@ from socket import AF_INET, AF_INET6
 import logging
 import aiofiles
 from typing import Callable
+import nftables
 import netcrave_docker_dockerd.netcrave_docker_config as netcrave_docker_config
 import netcrave_docker_dockerd.netcrave_dot_env as netcrave_dotenv
 from pyroute2.netns import setns
@@ -19,6 +20,7 @@ from netcrave_docker_util.cmd import cmd_async
 from netcrave_docker_util.ca import ez_rsa
 from netcrave_docker_util.ndb import network_database
 from netcrave_docker_dockerd.compose import get_compose
+from netcrave_docker_util.nft import nft_nat4_rules
 
 
 def nothing(red, blue, index, ndb): return []
@@ -101,7 +103,7 @@ async def create_internet_gateway(ndb):
                                         slave_interface_id=127,
                                         interface_name="igw",
                                         master_vrf_id=127,
-                                        slave_vrf_id=127,
+                                        slave_vrf_id=None,
                                         vrf_name="green",
                                         network_v4=IPv4Network("192.0.2.0/30"),
                                         network_v6=None,
@@ -113,8 +115,8 @@ async def create_internet_gateway(ndb):
         network_database.create_route(ndb=ndb,
                                       src=None,
                                       dst=IPv4Network("0.0.0.0/0"),
-                                      gw=IPv4Network("192.0.2.1/32"),
-                                      table_id=127,
+                                      gw=IPv4Network("192.0.2.2/32"),
+                                      table_id=None,
                                       ns="_netcrave")
 
         network_database.create_rule(ndb=ndb,
@@ -123,8 +125,27 @@ async def create_internet_gateway(ndb):
                                      action=1,
                                      table_id=127,
                                      ns=None)
+        nft = nftables.Nftables()
+
+        if not nft.json_validate(nft_nat4_rules()):
+            raise Exception("nat4 rules validation")
+
+        _, _, _ = nft.cmd("flush table inet _netcrave")
+        _, _, _ = nft.cmd("delete set inet _netcrave masquerade_networks4")
+
+        rc, output, error = nft.json_cmd(nft_nat4_rules())
+        if rc != 0:
+            raise Exception("{} {}, {}".format(rc, output, error))
+        
+        cmd = "add element inet _netcrave masquerade_networks4 { " + str(ndb.routes.get(dst="default").get("oif")) + ". 192.0.2.0/30 : jump masq }"
+
+        rc, output, error = nft.cmd(cmd)
+        if rc != 0:
+            raise Exception("{} {}, {}".format(rc, output, error))
+        
     except Exception as ex:
         log.critical(ex)
+        raise
 
 async def create_networks():
     log = logging.getLogger(__name__)
@@ -168,11 +189,12 @@ async def create_networks():
                                                 network_v6=n6,
                                                 master_ns="_netcrave",
                                                 slave_ns="_netcrave",
-                                                master_interface_alias="{name}_MASTER".format(name=index),
-                                                slave_interface_alias="{name}_SLAVE".format(name=index))
+                                                master_interface_alias="{name}_GATEWAY".format(name=index),
+                                                slave_interface_alias="{name}_PEER".format(name=index))
 
         except Exception as ex:
             log.critical(ex)
+            raise
 
 async def get_id(user_name, which="/etc/passwd"):
     async with aiofiles.open(which) as users:

@@ -10,6 +10,8 @@ from typing import ContextManager
 import contextlib
 import socket
 from ipaddress import IPv4Network, IPv6Network, IPv4Address, IPv6Address
+from pyroute2.nftables.main import NFTables
+
 
 def if_id(name, id):
     return "{name}{id}".format(name=name, id=id)
@@ -94,6 +96,9 @@ class network_database():
         net4_prefixlen = network_v4 != None and network_v4.prefixlen or None
         net6_prefixlen = network_v6 != None and network_v6.prefixlen or None
 
+        if master_vrf_id == None and slave_vrf_id == None:
+            raise NotImplementedError()
+
         if ndb.interfaces.exists({"target": master_ns, "ifname": if_id(interface_name, master_interface_id)}):
             log.info("interface exists {}".format(if_id(interface_name, master_interface_id)))
         else:
@@ -161,7 +166,8 @@ class network_database():
 
         if slave_vrf_id is not None and ndb.interfaces.exists({"target": slave_ns, "ifname": if_id(vrf_name, slave_vrf_id)}):
             log.info("interface exists {}".format(if_id(vrf_name, slave_vrf_id)))
-        else:
+            return
+        elif slave_vrf_id is not None:
             with ndb.interfaces.create(
                     target=slave_ns,
                     kind="vrf",
