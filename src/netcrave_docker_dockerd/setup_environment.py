@@ -130,6 +130,7 @@ async def create_internet_gateway(ndb):
         if not nft.json_validate(nft_nat4_rules()):
             raise Exception("nat4 rules validation")
 
+        
         _, _, _ = nft.cmd("flush table inet _netcrave")
         _, _, _ = nft.cmd("delete set inet _netcrave masquerade_networks4")
 
