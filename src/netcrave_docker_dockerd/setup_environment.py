@@ -131,19 +131,41 @@ async def create_internet_gateway(ndb):
             raise Exception("nat4 rules validation")
 
         
-        _, _, _ = nft.cmd("flush table inet _netcrave")
-        _, _, _ = nft.cmd("delete set inet _netcrave masquerade_networks4")
+        _, _, _ = nft.cmd("delete table inet _netcrave")
 
         rc, output, error = nft.json_cmd(nft_nat4_rules())
         if rc != 0:
             raise Exception("{} {}, {}".format(rc, output, error))
         
-        cmd = "add element inet _netcrave masquerade_networks4 { " + str(ndb.routes.get(dst="default").get("oif")) + ". 192.0.2.0/30 : jump masq }"
+        cmd = ("add element inet _netcrave masquerade_networks4 { "
+               + str(ndb.routes.get(dst="default").get("oif"))
+               + ". 192.0.2.0/30 : jump masq }")
 
         rc, output, error = nft.cmd(cmd)
         if rc != 0:
             raise Exception("{} {}, {}".format(rc, output, error))
-        
+
+        cmd = ("add flowtable inet _netcrave f { hook ingress priority 0; devices = { "
+               + ndb.interfaces.get(target="localhost",
+                                    index=ndb.routes.get(dst="default").get("oif")).get("ifname")
+               + ", igw127 }; }")
+
+        rc, output, error = nft.cmd(cmd)
+        if rc != 0:
+            raise Exception("{} {}, {}".format(rc, output, error))
+
+        cmd = ("add chain inet _netcrave forward { type filter hook forward priority 0; }")
+
+        rc, output, error = nft.cmd(cmd)
+        if rc != 0:
+            raise Exception("{} {}, {}".format(rc, output, error))
+
+        cmd = ("add rule inet _netcrave forward ip protocol tcp flow add @f")
+
+        rc, output, error = nft.cmd(cmd)
+        if rc != 0:
+            raise Exception("{} {}, {}".format(rc, output, error))
+
     except Exception as ex:
         log.critical(ex)
         raise
