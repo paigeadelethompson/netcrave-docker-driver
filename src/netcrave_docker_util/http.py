@@ -48,16 +48,19 @@ async def _run_application(application: WSGIApplication, environ: WSGIEnviron) -
             request_uri = "{request}".format(request=environ.get("REQUEST_URI"))
             logger.debug("request {} {}".format(request_uri, environ))
             try:
-                callback = next((index.get("callback") 
-                                 for index in app.router 
+                callback = next((index.get("callback")
+                                 for index in app.router
                                  if index.get("path") == request_uri))
+
                 response_status, response_body, headers = await callback(environ)
                 response_headers = app.headers + headers
+
                 return Response(
                     status=response_status,
                     reason=None,
                     headers=response_headers,
                     body=response_body.encode("utf-8", "strict"))
+
             except StopIteration:
                 logger.debug("no callback found {}".format(request_uri))
                 return Response(
@@ -190,7 +193,7 @@ class WSGIHandler:
                     "CONTENT-TYPE"):
                 header_value = ",".join(request.headers.getall(header_name))
                 environ["HTTP_" + header_name.replace("-", "_")] = header_value
-        # All done!
+
         return environ
 
     async def handle_request(self, request: Request) -> Response:

@@ -94,49 +94,68 @@ class service():
 
             await asyncio.sleep(1)
 
-    async def _dockerd_post_start(self):
-        log = logging.getLogger(__name__)
+    # async def _dockerd_post_start(self):
+    #     log = logging.getLogger(__name__)
+    #     try:
+    #         await self._docker_dependency.acquire()
+    #         self._docker_dependency.release()
+    #         id = await get_id("_netcrave")
+    #         gid = await get_id("_netcrave", "/etc/group")
+    #         pid = os.fork()
 
-        try:
-            await self._docker_dependency.acquire()
-            self._docker_dependency.release()
+    #         if pid != 0:
+    #             pass
+    #         else:
+    #             os.setgid(gid)
+    #             os.setuid(id)
+    #             assert os.getuid() == id
+    #             assert os.getgid() == gid
 
-            self._proj = await setup_compose()
+    #             log.debug("forked and setuid/gid to uid: {} gid: {} pid: {}".format(
+    #                 os.getuid(),
+    #                 os.getgid(),
+    #                 pid))
 
-            if len([index for index in self._proj.client.images() if len(
-                    [index2 for index2 in index.get("RepoTags") if index2.startswith("netcrave")]) > 0]) == 0:
+    #             loop = asyncio.new_event_loop()
+    #            loop.run_until_complete()
 
-                self._proj.build(["netcrave-image"])
-                self._proj.build(["netcrave-docker-image"])
 
-            certificate_volumes = [
-                self._proj.volumes.volumes.get(index)
-                for index in self._proj.volumes.volumes.keys()
-                if index.endswith("_ssl") and self._proj.volumes.volumes.get(index).exists()]
+    #         self._proj = await setup_compose()
 
-            if len(certificate_volumes) == 0:
-                self._proj.up(["cockroach-copy-certs"])
-                self._proj.up(["cockroach"])
-                self._proj.up(["cockroach-databases"])
-                self._proj.down(False, False)
-                self._proj.up([
-                    "cockroach",
-                    "ipam",
-                    "ifconfig",
-                    "haproxycfg",
-                    "cerfiticatemgr",
-                    "dnsd",
-                    "icap",
-                    "haproxy",
-                    "squid",
-                    "fluentd",
-                    "davfs",
-                    "acme",
-                    "powerdns",
-                    "frr-netcrave",
-                    "frr-docker"], start=False)
-        except Exception as ex:
-            log.error("compose failed {}".format(ex))
+    #         if len([index for index in self._proj.client.images() if len(
+    #                 [index2 for index2 in index.get("RepoTags") if index2.startswith("netcrave")]) > 0]) == 0:
+
+    #             self._proj.build(["netcrave-image"])
+    #             self._proj.build(["netcrave-docker-image"])
+
+    #         certificate_volumes = [
+    #             self._proj.volumes.volumes.get(index)
+    #             for index in self._proj.volumes.volumes.keys()
+    #             if index.endswith("_ssl") and self._proj.volumes.volumes.get(index).exists()]
+
+    #         if len(certificate_volumes) == 0:
+    #             self._proj.up(["cockroach-copy-certs"])
+    #             self._proj.up(["cockroach"])
+    #             self._proj.up(["cockroach-databases"])
+    #             self._proj.down(False, False)
+    #             self._proj.up([
+    #                 "cockroach",
+    #                 "ipam",
+    #                 "ifconfig",
+    #                 "haproxycfg",
+    #                 "cerfiticatemgr",
+    #                 "dnsd",
+    #                 "icap",
+    #                 "haproxy",
+    #                 "squid",
+    #                 "fluentd",
+    #                 "davfs",
+    #                 "acme",
+    #                 "powerdns",
+    #                 "frr-netcrave",
+    #                 "frr-docker"], start=False)
+    #     except Exception as ex:
+    #         log.error("compose failed {}".format(ex))
 
     def cleanup(self):
         log = logging.getLogger(__name__)
@@ -153,7 +172,7 @@ class service():
             except BaseException:
                 pass
 
-        network_database().__del__() # XXX Singleton which keeps handle open to NDB
+        #network_database().__del__() # XXX Singleton which keeps handle open to NDB
 
     def sigint(self, sig, frame):
         [index.cancel() for index in asyncio.all_tasks()]
@@ -176,7 +195,7 @@ class service():
                         tg.create_task(self._run_internal_driver()),
                         tg.create_task(self._run_containerd()),
                         tg.create_task(self._run_dockerd()),
-                        tg.create_task(self._dockerd_post_start()),
+                        # tg.create_task(self._dockerd_post_start()),
                         tg.create_task(self._wait_for_docker_daemon()))
 
             except asyncio.CancelledError as ex:

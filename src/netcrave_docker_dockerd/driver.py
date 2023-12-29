@@ -79,9 +79,9 @@ class internal_driver(handler):
     async def _get_interface_by_address(self, ndb, address):
         log = logging.getLogger(__name__)
         log.debug(address)
-        return next((ndb.interfaces.get(index) for index in ndb.interfaces.dump() 
+        return next((ndb.interfaces.get(index) for index in ndb.interfaces.dump()
                      if address.get("label") == ndb.interfaces.get(index).get("ifname")))
-        
+
     async def _get_network_and_interface(self, network_id, data, kind = type(IPv4Network)):
         log = logging.getLogger(__name__)
         address_space = data.get("AddressSpace")
@@ -95,7 +95,7 @@ class internal_driver(handler):
                 log.debug("gateway {}".format(g))
                 a = next(next(p.address_exclude(IPv4Network(g, 32))).hosts())
                 log.debug("address to lookup {}".format(a))
-                _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump() 
+                _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump()
                            if ip_address(ndb.addresses.get(index).get("address")) == a))
                 log.debug("found NDB address {}".format(_a))
                 return await self._get_interface_by_address(ndb, _a), a, p
@@ -106,11 +106,11 @@ class internal_driver(handler):
                 log.debug("gateway {}".format(g))
                 a = next(next(p.address_exclude(IPv6Network(g, 128))).hosts())
                 log.debug("address to lookup {}".format(a))
-                _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump() 
+                _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump()
                            if ip_address(ndb.addresses.get(index).get("address")) == a))
                 log.debug("found NDB address {}".format(_a))
                 return await self._get_interface_by_address(ndb, _a), a, p
-            
+
     async def plugin_create_network(self, request):
         log = logging.getLogger(__name__)
         data = await handler.get_post_data(request)
@@ -118,21 +118,21 @@ class internal_driver(handler):
         options = data.get("Options")
         ipv4_data = data.get("IPv4Data")
         ipv6_data = data.get("IPv6Data")
-        
+
         for index in ipv4_data:
             log.debug(index)
             result = await self._get_network_and_interface(network_id, index, type(IPv4Network))
             if result is None:
                 return (500, json.dumps(dict()), [])
-        
+
         for index in ipv6_data:
             log.debug(index)
             result = await self._get_network_and_interface(network_id, index, type(IPv6Network))
             if result is None:
                 return (500, json.dumps(dict()), [])
-            
+
         return (
-            200,
+            204,
             json.dumps(dict()),
             [])
 
@@ -151,25 +151,26 @@ class internal_driver(handler):
         address = interfaces.get("Address")
         address_ipv6 = interfaces.get("AddressIPv6")
         options = data.get("Options")
-        
+
         async with network_database() as ndb:
-            n = IPv4Network(str(next(itertools.islice(address.split("/"), 0, 
+            n = IPv4Network(str(next(itertools.islice(address.split("/"), 0,
                                                         sys.maxsize))), 32)
             a = n.hosts().pop()
-            
-            prefixlen = str(next(itertools.islice(address.split("/"), 1, 
+
+            prefixlen = str(next(itertools.islice(address.split("/"), 1,
                                                   sys.maxsize)))
-            
-            _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump() 
+
+            _a = next((ndb.addresses.get(index) for index in ndb.addresses.dump()
                     if ip_address(ndb.addresses.get(index).get("address")) == a))
-            
+
             intf = await self._get_interface_by_address(ndb, _a)
-            
-            log.debug("address: {} mac-address: {}".format(_a.get("address"), 
+
+            log.debug("address: {} mac-address: {}".format(_a.get("address"),
                                                             intf.get("address")))
-            
+
             intf.set("ifalias", "{}{}".format(network_id, endpoint_id))
             intf.commit()
+
             return (200, json.dumps({"Interface": {
                 "MacAddress": intf.get("address") }}), [])
 
@@ -188,8 +189,8 @@ class internal_driver(handler):
                         if "{}{}".format(network_id, endpoint_id) == ndb.interfaces.get(index).get("ifalias")))
             return (
                 200,
-                json.dumps(dict({"InterfaceName": {"SrcName": intf.get("ifname"), 
-                                                "DstPrefix": ""}, "Gateway": "", 
+                json.dumps(dict({"InterfaceName": {"SrcName": intf.get("ifname"),
+                                                "DstPrefix": ""}, "Gateway": "",
                 "GatewayIPv6": "", "StaticRoutes": []})), [])
 
     async def plugin_program_external_connectivity(self, request):
@@ -237,3 +238,4 @@ class internal_driver(handler):
             200,
             json.dumps(dict()),
             [])
+
