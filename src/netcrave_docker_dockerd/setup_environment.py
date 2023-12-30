@@ -170,6 +170,31 @@ async def create_internet_gateway(ndb):
         log.critical(ex)
         raise
 
+def enumerate_networks():
+    dotenv = netcrave_dotenv.get()
+
+    distinct_networks = [index for index, _ in groupby([
+        index for index in dotenv.keys()
+        if index.endswith("_NET_4")
+        or index.endswith("_NET_6")],
+        key=lambda k: re.match("^[^_]+(?=_)", k).group())]
+
+    net_zip = zip(
+        [index for index in range(128, 128 + (len(distinct_networks) * 2)) if index % 2 == 0],
+        [index for index in range(128, 128 + (len(distinct_networks) * 2)) if index % 2 != 0],
+        distinct_networks)
+
+    for master_id, slave_id, index in net_zip:
+        n4 = (dotenv.get("{index}_NET_4".format(index=index)) is not None
+              and IPv4Network(dotenv.get("{index}_NET_4".format(index=index)))
+              or None)
+
+        n6 = (dotenv.get("{index}_NET_6".format(index=index)) is not None
+              and IPv6Network(dotenv.get("{index}_NET_6".format(index=index)))
+              or None)
+
+        yield master_id, slave_id, index, n4, n6
+
 async def create_networks():
     log = logging.getLogger(__name__)
     dotenv = netcrave_dotenv.get()
@@ -181,26 +206,7 @@ async def create_networks():
             with ndb.interfaces.wait(target="_netcrave", ifname="lo") as loopback:
                 loopback.set(state="up")
 
-            distinct_networks = [index for index, _ in groupby([
-                index for index in dotenv.keys()
-                if index.endswith("_NET_4")
-                or index.endswith("_NET_6")],
-                key=lambda k: re.match("^[^_]+(?=_)", k).group())]
-
-            net_zip = zip(
-                [index for index in range(128, 128 + (len(distinct_networks) * 2)) if index % 2 == 0],
-                [index for index in range(128, 128 + (len(distinct_networks) * 2)) if index % 2 != 0],
-                distinct_networks)
-
-            for master_id, slave_id, index in net_zip:
-                n4 = (dotenv.get("{index}_NET_4".format(index=index)) is not None
-                    and IPv4Network(dotenv.get("{index}_NET_4".format(index=index)))
-                    or None)
-
-                n6 = (dotenv.get("{index}_NET_6".format(index=index)) is not None
-                    and IPv6Network(dotenv.get("{index}_NET_6".format(index=index)))
-                    or None)
-
+            for master_id, slave_id, index, n4, n6 in enumerate_networks():
                 network_database.create_network(ndb=ndb,
                                                 master_interface_id=master_id,
                                                 slave_interface_id=slave_id,

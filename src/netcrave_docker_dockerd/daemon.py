@@ -32,10 +32,10 @@ class service():
         pid = os.fork()
 
         if pid == 0:
-            os.setgid(gid)
-            os.setuid(id)
-            assert os.getuid() == id
-            assert os.getgid() == gid
+            # os.setgid(gid)
+            # os.setuid(id)
+            # assert os.getuid() == id
+            # assert os.getgid() == gid # XXX need root to modify interfaces RTNL, priv
 
             log.debug("forked and setuid/gid to uid: {} gid: {} pid: {}".format(
                 os.getuid(),
@@ -58,7 +58,7 @@ class service():
 
     async def _run_dockerd(self):
         assert os.getuid() == 0
-        await change_netns() ### XXX TODO this needs to be managed from a context manager, with a sync enter/exit
+        await change_netns() 
 
 
         await cmd_async(
@@ -68,7 +68,7 @@ class service():
 
     async def _run_containerd(self):
         assert os.getuid() == 0
-        await change_netns() ### XXX TODO this needs to be managed from a context manager, with a sync enter/exit
+        await change_netns()
 
         await cmd_async(
             "/opt/netcrave/bin/containerd",
