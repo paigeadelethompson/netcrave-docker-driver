@@ -94,6 +94,7 @@ class internal_driver(handler):
                     slave = ndb.interfaces.get(ifname="blue{}".format(slave_id))
                     slave.set(ifalias=network_id)
                     slave.commit()
+
                     return (
                         200,
                         json.dumps(dict()),
@@ -227,6 +228,7 @@ class internal_driver(handler):
                 if slave.get("ifalias") == endpoint_id:
                     slave.set(target = "_netcrave")
                     slave.commit()
+
                     return (
                         200,
                         json.dumps(dict()),

@@ -1228,8 +1228,8 @@ develop = false
 [package.source]
 type = "git"
 url = "https://salsa.debian.org/pkg-netfilter-team/pkg-nftables.git"
-reference = "master"
-resolved_reference = "c2663f1953f3d0882997f01d2943dd53bad5e563"
+reference = "debian/bookworm"
+resolved_reference = "ad733ade6c96b26b01dfd2edc6ae9beb3172a921"
 subdirectory = "py"
 
 [[package]]
@@ -1908,6 +1908,17 @@ files = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.10.2"
+description = "Python Library for Tom's Obvious, Minimal Language"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+files = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
+]
+
+[[package]]
 name = "tomlkit"
 version = "0.12.3"
 description = "Style preserving TOML library"
@@ -2230,4 +2241,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "e12a9ec78071d3fe73dabd76f52ae36c219074230acecbdc452639b9177eff7f"
+content-hash = "1a36920e11252debd209202cea29fa19c598d73eab817c4ac34bdf5d0f32d00c"

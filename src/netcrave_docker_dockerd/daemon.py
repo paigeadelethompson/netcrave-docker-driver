@@ -27,34 +27,28 @@ class service():
 
     async def _run_internal_driver(self):
         log = logging.getLogger(__name__)
-        id = await get_id("_netcrave")
-        gid = await get_id("_netcrave", "/etc/group")
-        pid = os.fork()
+        # id = await get_id("_netcrave")
+        # gid = await get_id("_netcrave", "/etc/group")
+        # pid = os.fork()
 
-        if pid == 0:
+        # if pid == 0:
             # os.setgid(gid)
             # os.setuid(id)
             # assert os.getuid() == id
             # assert os.getgid() == gid # XXX need root to modify interfaces RTNL, priv
 
-            log.debug("forked and setuid/gid to uid: {} gid: {} pid: {}".format(
-                os.getuid(),
-                os.getgid(),
-                pid))
+            # log.debug("forked and setuid/gid to uid: {} gid: {} pid: {}".format(
+            #     os.getuid(),
+            #     os.getgid(),
+            #     pid))
 
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(internal_driver.internal_network_driver(
-                internal_driver,
-                "/run/docker/plugins/",
-                "_netcrave.sock"))
+        # loop = asyncio.new_event_loop()
+        # loop.run_until_complete(internal_driver.internal_network_driver(
+        #     internal_driver,
+        #     "/run/docker/plugins/",
+        #     "_netcrave.sock"))
 
-        else:
-            # XXX TODO this call to get_event_loop is different from the one in the parent if statement,
-            # rather it returns a different loop from the child after fork(), but this parent has to remain
-            # active otherwise the child process will close when this async task finishes, for now just
-            # wait unconditionally forever
-            while asyncio.get_event_loop().is_running():
-                await asyncio.sleep(sys.maxsize)
+        await internal_driver.internal_network_driver(internal_driver, "/run/docker/plugins", "_netcrave.sock")
 
     async def _run_dockerd(self):
         assert os.getuid() == 0
@@ -72,10 +66,8 @@ class service():
 
         await cmd_async(
             "/opt/netcrave/bin/containerd",
-            "--root",
-            "/srv/netcrave/_netcrave/bin/containerd",
-            "--address",
-            "/run/netcrave/_netcrave/sock.containerd")
+            "--config",
+            "/etc/netcrave/_netcrave.containerd.toml")
 
     async def _wait_for_docker_daemon(self):
         log = logging.getLogger(__name__)
@@ -172,10 +164,11 @@ class service():
             except BaseException:
                 pass
 
-        #network_database().__del__() # XXX Singleton which keeps handle open to NDB
-
     def sigint(self, sig, frame):
-        [index.cancel() for index in asyncio.all_tasks()]
+        try:
+            [index.cancel() for index in asyncio.all_tasks()]
+        except:
+            pass
 
     async def start(self):
         log = logging.getLogger(__name__)

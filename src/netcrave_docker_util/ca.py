@@ -44,7 +44,7 @@ class ez_rsa():
                 backend=default_backend())
             async with aiofiles.open(cert_path, "rb") as cert_data:
                 root_cert = x509.load_pem_x509_certificate(
-                    cert_data.read(),
+                    await cert_data.read(),
                     default_backend())
                 return root_key, root_cert
 

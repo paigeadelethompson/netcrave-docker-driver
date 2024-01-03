@@ -13,7 +13,7 @@ def get():
 
 def get_default():
     return {'bip': '10.0.0.1/16',
-            'containerd': '/run/netcrave/_netcrave/sock.containerd',
+            'containerd': '/run/netcrave/_netcrave/containerd/containerd.sock',
             'data-root': '/srv/netcrave/_netcrave/data',
             'default-address-pools': [{'base': '10.1.0.0/16',
                                        'size': 29}],

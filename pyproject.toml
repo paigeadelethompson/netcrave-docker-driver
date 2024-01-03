@@ -47,6 +47,7 @@ singleton-decorator = "^1.0.0"
 jinja2 = "^3.1.2"
 netns = "^1.0"
 nftables = {git = "https://salsa.debian.org/pkg-netfilter-team/pkg-nftables.git", rev = "debian/bookworm", subdirectory = "py"}
+toml = "^0.10.2"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.0.3"

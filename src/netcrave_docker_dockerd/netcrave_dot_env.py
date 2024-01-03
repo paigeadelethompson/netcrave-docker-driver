@@ -10,7 +10,7 @@ def get():
     if not load_dotenv("/etc/netcrave/_netcrave.dotenv"):
         raise Exception("failed to load _netcrave.dotenv")
     data = dotenv_values("/etc/netcrave/_netcrave.dotenv")
-    log.debug("loaded dotenv {}".format(data))
+    # log.debug("loaded dotenv {}".format(data))
     return data
 
 

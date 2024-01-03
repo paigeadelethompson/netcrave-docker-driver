@@ -21,7 +21,7 @@ from netcrave_docker_util.ca import ez_rsa
 from netcrave_docker_util.ndb import network_database
 from netcrave_docker_dockerd.compose import get_compose
 from netcrave_docker_util.nft import nft_nat4_rules
-
+from netcrave_docker_dockerd.netcrave_containerd import get_netcrave_containerd_config
 
 def nothing(red, blue, index, ndb): return []
 def route6(i): return IPv6Network(
@@ -130,33 +130,35 @@ async def create_internet_gateway(ndb):
         if not nft.json_validate(nft_nat4_rules()):
             raise Exception("nat4 rules validation")
 
-        
         _, _, _ = nft.cmd("delete table inet _netcrave")
 
         rc, output, error = nft.json_cmd(nft_nat4_rules())
+
         if rc != 0:
             raise Exception("{} {}, {}".format(rc, output, error))
-        
+
         cmd = ("add element inet _netcrave masquerade_networks4 { "
                + str(ndb.routes.get(dst="default").get("oif"))
                + ". 192.0.2.0/30 : jump masq }")
 
         rc, output, error = nft.cmd(cmd)
+
         if rc != 0:
             raise Exception("{} {}, {}".format(rc, output, error))
 
         cmd = ("add flowtable inet _netcrave f { hook ingress priority 0; devices = { "
-               + ndb.interfaces.get(target="localhost",
-                                    index=ndb.routes.get(dst="default").get("oif")).get("ifname")
+               + ndb.interfaces.get(target="localhost", index=ndb.routes.get(dst="default").get("oif")).get("ifname")
                + ", igw127 }; }")
 
         rc, output, error = nft.cmd(cmd)
+
         if rc != 0:
             raise Exception("{} {}, {}".format(rc, output, error))
 
         cmd = ("add chain inet _netcrave forward { type filter hook forward priority 0; }")
 
         rc, output, error = nft.cmd(cmd)
+
         if rc != 0:
             raise Exception("{} {}, {}".format(rc, output, error))
 
@@ -166,9 +168,54 @@ async def create_internet_gateway(ndb):
         if rc != 0:
             raise Exception("{} {}, {}".format(rc, output, error))
 
+        await change_netns()
+
+        # Configure NFtables for NetNS
+
+        nft = nftables.Nftables()
+
+        if not nft.json_validate(nft_nat4_rules()):
+            raise Exception("nat4 rules validation")
+
+        _, _, _ = nft.cmd("delete table inet _netcrave")
+
+        rc, output, error = nft.json_cmd(nft_nat4_rules())
+
+        if rc != 0:
+            raise Exception("{} {}, {}".format(rc, output, error))
+
+        cmd = ("add element inet _netcrave masquerade_networks4 { igw127 . 0.0.0.0/0 : jump masq }")
+        rc, output, error = nft.cmd(cmd)
+
+        if rc != 0:
+            raise Exception("{} {}, {}".format(rc, output, error))
+
+        # cmd = ("add flowtable inet _netcrave f { hook ingress priority 0; devices = { igw127, docker0 }; }")
+
+        # rc, output, error = nft.cmd(cmd)
+
+        # if rc != 0:
+        #     raise Exception("{} {}, {}".format(rc, output, error))
+
+        # cmd = ("add chain inet _netcrave forward { type filter hook forward priority 0; }")
+
+        # rc, output, error = nft.cmd(cmd)
+
+        # if rc != 0:
+        #     raise Exception("{} {}, {}".format(rc, output, error))
+
+        # cmd = ("add rule inet _netcrave forward ip protocol tcp flow add @f")
+
+        # rc, output, error = nft.cmd(cmd)
+        # if rc != 0:
+        #     raise Exception("{} {}, {}".format(rc, output, error))
+
     except Exception as ex:
         log.critical(ex)
         raise
+
+    finally:
+        await restore_default_netns()
 
 def enumerate_networks():
     dotenv = netcrave_dotenv.get()
@@ -295,6 +342,8 @@ async def create_configuration():
             await config.write("\n".join(["{env_key}={env_value}".format(
                 env_key=key,
                 env_value=value) for key, value in netcrave_dotenv.get_default()]))
+
+    _ = await get_netcrave_containerd_config()
 
 async def setup_compose():
     return await get_compose()
