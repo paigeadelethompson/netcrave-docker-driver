@@ -1,3 +1,6 @@
+# Shelved 
+until further notice
+
 # WIP 
 
 A plugin to expand the functionality of Docker 
